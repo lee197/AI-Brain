@@ -36,7 +36,7 @@ import {
 } from 'lucide-react'
 
 export default function ContextsPage() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { user, loading } = useAuth()
   const router = useRouter()
   const [contexts, setContexts] = useState<Context[]>([])
