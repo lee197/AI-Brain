@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { 
   MessageSquare, 
