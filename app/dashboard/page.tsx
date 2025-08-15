@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/i18n/language-context'
 import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { useAuth } from '@/hooks/use-auth'
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { 
   MessageSquare, 
   CheckCircle2,
@@ -49,7 +50,8 @@ import {
   ArrowUpRight,
   Cpu,
   Wifi,
-  WifiOff
+  WifiOff,
+  GripVertical
 } from 'lucide-react'
 
 interface Message {
@@ -285,9 +287,10 @@ ${t.dashboard.howCanIHelp}`
   ]
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* 左侧智能概览面板 (25%) */}
-      <aside className="w-80 border-r bg-card/50 flex flex-col">
+    <div className="h-screen bg-background">
+      <PanelGroup direction="horizontal" className="h-full">
+        {/* 左侧智能概览面板 */}
+        <Panel defaultSize={25} minSize={15} maxSize={40} className="bg-card/50 flex flex-col">
         {/* 品牌区域 */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-3">
@@ -405,10 +408,17 @@ ${t.dashboard.howCanIHelp}`
             </div>
           </ScrollArea>
         </div>
-      </aside>
+        </Panel>
 
-      {/* 中央 AI 对话区域 (65%) */}
-      <div className="flex-1 flex flex-col bg-background">
+        {/* 左右面板之间的调整把手 */}
+        <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20 transition-colors flex items-center justify-center group">
+          <div className="w-1 h-8 bg-border rounded-full group-hover:bg-primary/50 transition-colors">
+            <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </PanelResizeHandle>
+
+        {/* 中央 AI 对话区域 */}
+        <Panel defaultSize={55} minSize={40} className="flex flex-col bg-background">
         {/* 顶部状态栏 */}
         <header className="border-b bg-card/50 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -619,10 +629,17 @@ ${t.dashboard.howCanIHelp}`
             </div>
           </div>
         </main>
-      </div>
+        </Panel>
 
-      {/* 右侧任务执行面板 (10%) */}
-      <aside className="w-72 border-l bg-card/30 flex flex-col">
+        {/* 中右面板之间的调整把手 */}
+        <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20 transition-colors flex items-center justify-center group">
+          <div className="w-1 h-8 bg-border rounded-full group-hover:bg-primary/50 transition-colors">
+            <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </PanelResizeHandle>
+
+        {/* 右侧任务执行面板 */}
+        <Panel defaultSize={20} minSize={15} maxSize={35} className="border-l bg-card/30 flex flex-col">
         <div className="p-4 border-b">
           <h3 className="font-semibold text-sm flex items-center gap-2">
             <Zap className="w-4 h-4" />
@@ -672,7 +689,8 @@ ${t.dashboard.howCanIHelp}`
             )}
           </div>
         </ScrollArea>
-      </aside>
+        </Panel>
+      </PanelGroup>
     </div>
   )
 }
