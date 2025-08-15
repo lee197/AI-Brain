@@ -324,17 +324,14 @@ ${t.dashboard.howCanIHelp}`
       <PanelGroup direction="horizontal" className="h-full">
         {/* 左侧智能概览面板 */}
         <Panel defaultSize={25} minSize={15} maxSize={40} className="bg-card/50 flex flex-col">
-        {/* 品牌区域 */}
+        {/* Context 切换器区域 */}
         <div className="p-4 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-              <span className="text-2xl">🚀</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">AI Brain MVP 开发</h1>
-              <p className="text-xs text-muted-foreground">{t.dashboard.workspace}</p>
-            </div>
-          </div>
+          <ContextSwitcher
+            currentContext={currentContext}
+            onContextChange={handleContextChange}
+            onCreateNew={handleCreateContext}
+            className="w-full"
+          />
         </div>
 
         {/* 三模块架构状态 */}
@@ -471,12 +468,6 @@ ${t.dashboard.howCanIHelp}`
             </div>
 
             <div className="flex items-center gap-4">
-              <ContextSwitcher
-                currentContext={currentContext}
-                onContextChange={handleContextChange}
-                onCreateNew={handleCreateContext}
-                className="mr-2"
-              />
               <Badge variant="outline" className="text-xs">
                 <Cpu className="w-3 h-3 mr-1" />
                 {t.dashboard.aiMode}: {t.dashboard.enhanced}
