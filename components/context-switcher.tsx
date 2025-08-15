@@ -81,9 +81,17 @@ export function ContextSwitcher({
       )
     : null
 
-  const formatLastActivity = (date: Date) => {
+  const formatLastActivity = (date: Date | string) => {
     const now = new Date()
-    const diff = now.getTime() - date.getTime()
+    // Handle both Date objects and ISO date strings
+    const targetDate = date instanceof Date ? date : new Date(date)
+    
+    // Check if the date is valid
+    if (isNaN(targetDate.getTime())) {
+      return t.dashboard.unknown || '未知'
+    }
+    
+    const diff = now.getTime() - targetDate.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
     
     if (days === 0) return t.dashboard.today || '今天'
