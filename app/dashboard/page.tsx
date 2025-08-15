@@ -328,10 +328,10 @@ ${t.dashboard.howCanIHelp}`
         <div className="p-4 border-b">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
+              <span className="text-2xl">🚀</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg">AI Brain</h1>
+              <h1 className="font-bold text-lg">AI Brain MVP 开发</h1>
               <p className="text-xs text-muted-foreground">{t.dashboard.workspace}</p>
             </div>
           </div>
