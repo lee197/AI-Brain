@@ -31,7 +31,8 @@ import {
   Activity,
   Zap,
   Database,
-  Globe
+  Globe,
+  Brain
 } from 'lucide-react'
 
 interface ActivityItem {
