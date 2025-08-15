@@ -301,7 +301,7 @@ export default function ContextsPage() {
                                 variant="secondary" 
                                 className="text-xs mt-1"
                               >
-                                {CONTEXT_TYPE_INFO[context.type]?.title}
+                                {getContextTypeInfo(context.type, language).title}
                               </Badge>
                             </div>
                           </div>
