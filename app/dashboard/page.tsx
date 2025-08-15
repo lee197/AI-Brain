@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Progress } from '@/components/ui/progress'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -32,27 +34,60 @@ import {
   Zap,
   Database,
   Globe,
-  Brain
+  Brain,
+  Inbox,
+  BarChart3,
+  Target,
+  AlertTriangle,
+  CheckSquare,
+  Loader2,
+  Play,
+  Pause,
+  RotateCcw,
+  Monitor,
+  Sparkles,
+  ArrowUpRight,
+  Cpu,
+  Wifi,
+  WifiOff
 } from 'lucide-react'
 
-interface ActivityItem {
+interface Message {
   id: string
-  type: 'jira' | 'slack' | 'github' | 'calendar'
-  title: string
-  description: string
-  time: string
-  icon: any
-  color: string
-  urgent?: boolean
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  suggestions?: string[]
+  actions?: ActionItem[]
 }
 
-interface StatCard {
+interface ActionItem {
+  id: string
+  type: 'create_task' | 'send_message' | 'schedule_meeting' | 'generate_report'
   title: string
-  value: string | number
-  change: string
-  trend: 'up' | 'down' | 'neutral'
+  status: 'pending' | 'executing' | 'completed' | 'failed'
+  progress?: number
+  result?: string
+}
+
+interface DataSource {
+  id: string
+  name: string
+  type: 'slack' | 'jira' | 'github' | 'google'
+  status: 'connected' | 'syncing' | 'error' | 'disconnected'
+  lastSync: Date
+  itemCount: number
+  quality: number
+}
+
+interface InsightItem {
+  id: string
+  type: 'warning' | 'opportunity' | 'trend' | 'suggestion'
+  title: string
+  description: string
+  priority: 'high' | 'medium' | 'low'
+  actionable: boolean
   icon: any
-  color: string
 }
 
 export default function DashboardPage() {
@@ -60,6 +95,9 @@ export default function DashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const [aiInput, setAiInput] = useState('')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [activeActions, setActiveActions] = useState<ActionItem[]>([])
 
   // 检查认证状态
   useEffect(() => {
@@ -68,6 +106,62 @@ export default function DashboardPage() {
     }
   }, [user, loading, router])
 
+  // 初始化示例对话
+  useEffect(() => {
+    if (messages.length === 0) {
+      const initialMessage: Message = {
+        id: '1',
+        role: 'assistant',
+        content: '你好！我是你的 AI Brain 智能助手。我已经连接到您的企业工具，可以帮您：\n\n• 📋 **任务管理**：创建和跟踪 Jira 任务\n• 💬 **团队协作**：发送 Slack 消息，查看对话\n• 🔧 **代码管理**：查看 GitHub PR 状态，代码审查\n• 📅 **会议安排**：管理日历和会议\n• 📊 **数据洞察**：生成报告和分析\n\n**今日重点关注**：\n- 有 3 个 PR 待审核\n- 项目进度存在风险预警\n- Sarah 团队负载过重需要调整\n\n请告诉我您需要什么帮助？',
+        timestamp: new Date(),
+        suggestions: [
+          '查看今日待办任务',
+          '分析项目进度风险',
+          '优化团队资源分配',
+          '生成周报总结'
+        ]
+      }
+      setMessages([initialMessage])
+    }
+  }, [])
+
+  // 定义处理函数
+  const handleSendMessage = () => {
+    if (!aiInput.trim()) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: aiInput,
+      timestamp: new Date()
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setAiInput('')
+    setIsProcessing(true)
+
+    // 模拟 AI 响应
+    setTimeout(() => {
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '我正在处理您的请求，分析相关数据...\n\n基于当前项目状态，我建议：\n1. 优先处理高优先级任务\n2. 协调团队资源分配\n3. 设置进度里程碑提醒',
+        timestamp: new Date(),
+        actions: [
+          {
+            id: 'action1',
+            type: 'create_task',
+            title: '创建 Jira 任务',
+            status: 'pending'
+          }
+        ]
+      }
+      setMessages(prev => [...prev, aiResponse])
+      setIsProcessing(false)
+    }, 2000)
+  }
+
+  // 如果正在加载，显示加载状态
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -76,146 +170,224 @@ export default function DashboardPage() {
     )
   }
 
+  // 如果用户未认证，返回 null（将被重定向）
   if (!user) {
     return null
   }
 
-  // 模拟数据
-  const stats: StatCard[] = [
-    {
-      title: '今日任务 / Today Tasks',
-      value: 12,
-      change: '+3 较昨日',
-      trend: 'up',
-      icon: CheckCircle2,
-      color: 'text-green-600'
-    },
-    {
-      title: '未读消息 / Unread Messages',
-      value: 5,
-      change: '2 紧急',
-      trend: 'neutral',
-      icon: MessageSquare,
-      color: 'text-blue-600'
-    },
-    {
-      title: '待审核 PR / Pending PRs',
-      value: 3,
-      change: '1 需立即处理',
-      trend: 'down',
-      icon: GitPullRequest,
-      color: 'text-purple-600'
-    },
-    {
-      title: '活跃集成 / Active Integrations',
-      value: 4,
-      change: '全部正常',
-      trend: 'up',
-      icon: Zap,
-      color: 'text-orange-600'
-    }
-  ]
-
-  const recentActivities: ActivityItem[] = [
+  // 数据收集模块数据
+  const dataSources: DataSource[] = [
     {
       id: '1',
-      type: 'jira',
-      title: 'JIRA: 修复登录问题',
-      description: '任务 #AI-123 已分配给你',
-      time: '5 分钟前',
-      icon: AlertCircle,
-      color: 'text-blue-600',
-      urgent: true
+      name: 'Slack',
+      type: 'slack',
+      status: 'connected',
+      lastSync: new Date(Date.now() - 5 * 60000),
+      itemCount: 1247,
+      quality: 95
     },
     {
-      id: '2',
-      type: 'slack',
-      title: 'Slack: @john 提到了你',
-      description: '在 #development 频道关于 API 设计的讨论',
-      time: '15 分钟前',
-      icon: MessageSquare,
-      color: 'text-purple-600'
+      id: '2', 
+      name: 'Jira',
+      type: 'jira',
+      status: 'syncing',
+      lastSync: new Date(Date.now() - 2 * 60000),
+      itemCount: 342,
+      quality: 88
     },
     {
       id: '3',
-      type: 'github',
-      title: 'GitHub: PR #456 需要审核',
-      description: 'feat: 添加用户认证功能',
-      time: '1 小时前',
-      icon: GitPullRequest,
-      color: 'text-gray-600'
+      name: 'GitHub',
+      type: 'github', 
+      status: 'connected',
+      lastSync: new Date(Date.now() - 8 * 60000),
+      itemCount: 567,
+      quality: 92
     },
     {
       id: '4',
-      type: 'calendar',
-      title: '日历: 团队会议即将开始',
-      description: '每周进度同步会议 - 下午 3:00',
-      time: '2 小时后',
-      icon: Calendar,
-      color: 'text-green-600'
+      name: 'Google Workspace',
+      type: 'google',
+      status: 'error',
+      lastSync: new Date(Date.now() - 3600000),
+      itemCount: 0,
+      quality: 0
     }
   ]
 
-  const sidebarItems = [
-    { icon: LayoutDashboard, label: '概览 / Overview', active: true },
-    { icon: MessageSquare, label: 'AI 对话 / AI Chat' },
-    { icon: FolderOpen, label: '项目 / Projects' },
-    { icon: Users, label: '团队 / Team' },
-    { icon: Activity, label: '活动 / Activity' },
-    { icon: Settings, label: '设置 / Settings' }
+  // 智能洞察数据
+  const insights: InsightItem[] = [
+    {
+      id: '1',
+      type: 'warning',
+      title: '项目进度风险 / Project Risk',
+      description: 'API 开发落后 2 周，可能影响发布时间',
+      priority: 'high',
+      actionable: true,
+      icon: AlertTriangle
+    },
+    {
+      id: '2',
+      type: 'opportunity',
+      title: '资源优化建议 / Resource Optimization',
+      description: 'Sarah 有带宽，Tom 负载过重，建议任务重分配',
+      priority: 'medium',
+      actionable: true,
+      icon: Target
+    },
+    {
+      id: '3',
+      type: 'trend',
+      title: '代码质量提升 / Code Quality',
+      description: 'PR 审查时间减少 40%，团队协作效率显著提升',
+      priority: 'low',
+      actionable: false,
+      icon: TrendingUp
+    }
   ]
 
   return (
     <div className="flex h-screen bg-background">
-      {/* 侧边栏 */}
-      <aside className="w-64 border-r bg-card">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
+      {/* 左侧智能概览面板 (25%) */}
+      <aside className="w-80 border-r bg-card/50 flex flex-col">
+        {/* 品牌区域 */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full gradient-bg flex items-center justify-center">
-              <span className="text-xl">🤖</span>
+              <Brain className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="font-bold text-lg">AI Brain</h1>
-              <p className="text-xs text-muted-foreground">工作台 / Workspace</p>
+              <p className="text-xs text-muted-foreground">智能工作台 / Intelligent Workspace</p>
             </div>
           </div>
+        </div>
 
-          <nav className="space-y-1">
-            {sidebarItems.map((item, index) => (
-              <button
-                key={index}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  item.active 
-                    ? 'bg-primary/10 text-primary' 
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
+        {/* 三模块架构状态 */}
+        <div className="p-4 border-b">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Monitor className="w-4 h-4" />
+            系统状态 / System Status
+          </h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2">
+                <Inbox className="w-3 h-3" />
+                数据收集 / Collection
+              </span>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-600">运行中</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2">
+                <Brain className="w-3 h-3" />
+                AI 分析 / Analysis
+              </span>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-blue-600">处理中</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-2">
+                <Zap className="w-3 h-3" />
+                任务执行 / Execution
+              </span>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-orange-600">待命</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 数据源状态 */}
+        <div className="p-4 border-b">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            数据源 / Data Sources
+          </h3>
+          <ScrollArea className="h-32">
+            <div className="space-y-2">
+              {dataSources.map((source) => (
+                <div key={source.id} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
+                  <div className="flex items-center gap-2">
+                    {source.status === 'connected' && <Wifi className="w-3 h-3 text-green-500" />}
+                    {source.status === 'syncing' && <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />}
+                    {source.status === 'error' && <WifiOff className="w-3 h-3 text-red-500" />}
+                    <span>{source.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">{source.itemCount}</div>
+                    <div className="text-xs">{source.quality}%</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* 智能洞察 */}
+        <div className="flex-1 p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            智能洞察 / Insights
+          </h3>
+          <ScrollArea className="h-full">
+            <div className="space-y-3">
+              {insights.map((insight) => (
+                <Card key={insight.id} className="p-3 text-xs">
+                  <div className="flex items-start gap-2">
+                    <insight.icon className={`w-4 h-4 mt-0.5 ${
+                      insight.priority === 'high' ? 'text-red-500' :
+                      insight.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="font-medium mb-1">{insight.title}</p>
+                      <p className="text-muted-foreground">{insight.description}</p>
+                      {insight.actionable && (
+                        <Button size="sm" variant="outline" className="mt-2 h-6 px-2 text-xs">
+                          采取行动
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       </aside>
 
-      {/* 主内容区 */}
-      <div className="flex-1 flex flex-col">
-        {/* 顶部栏 */}
-        <header className="border-b bg-card px-6 py-4">
+      {/* 中央 AI 对话区域 (65%) */}
+      <div className="flex-1 flex flex-col bg-background">
+        {/* 顶部状态栏 */}
+        <header className="border-b bg-card/50 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="搜索任务、文档、对话... / Search tasks, docs, chats..."
-                  className="pl-10"
-                />
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-muted-foreground">同步中 3/4</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <CheckSquare className="w-4 h-4 text-blue-500" />
+                <span className="text-muted-foreground">待审核 5</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Clock className="w-4 h-4 text-orange-500" />
+                <span className="text-muted-foreground">队列中 2</span>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
+              <Badge variant="outline" className="text-xs">
+                <Cpu className="w-3 h-3 mr-1" />
+                AI 模式: 增强
+              </Badge>
               <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
+                <Bell className="w-4 h-4" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </Button>
               <LanguageSwitcher />
@@ -224,181 +396,237 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* 主要内容 */}
-        <main className="flex-1 overflow-auto p-6">
-          {/* 欢迎区域 */}
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold mb-2">
-              欢迎回来 / Welcome back, {user.name || user.email?.split('@')[0]}! 👋
-            </h2>
-            <p className="text-muted-foreground">
-              今天是个高效的一天，让 AI Brain 帮助你完成更多任务
-            </p>
-          </div>
+        {/* 主对话区域 - 占据大部分空间 */}
+        <main className="flex-1 flex flex-col">
+          {/* 对话消息区 */}
+          <ScrollArea className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {messages.map((message) => (
+                <div key={message.id} className={`flex gap-4 ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}>
+                  {message.role === 'assistant' && (
+                    <Avatar className="w-10 h-10 shrink-0">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        <Brain className="w-5 h-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                  
+                  <div className={`flex-1 max-w-3xl ${
+                    message.role === 'user' ? 'text-right' : ''
+                  }`}>
+                    <div className={`rounded-2xl p-4 ${
+                      message.role === 'user' 
+                        ? 'bg-primary text-primary-foreground ml-auto max-w-lg' 
+                        : 'bg-card border'
+                    }`}>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {message.content}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <span>{message.timestamp.toLocaleTimeString()}</span>
+                      {message.role === 'assistant' && (
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" className="h-6 px-2">
+                            👍
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-6 px-2">
+                            👎
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-6 px-2">
+                            📝
+                          </Button>
+                        </div>
+                      )}
+                    </div>
 
-          {/* 统计卡片 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {stats.map((stat, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <stat.icon className={`w-8 h-8 ${stat.color}`} />
-                    {stat.trend === 'up' && (
-                      <TrendingUp className="w-4 h-4 text-green-500" />
+                    {/* AI 建议操作 */}
+                    {message.suggestions && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {message.suggestions.map((suggestion, index) => (
+                          <Badge 
+                            key={index}
+                            variant="outline" 
+                            className="cursor-pointer hover:bg-secondary"
+                            onClick={() => setAiInput(suggestion)}
+                          >
+                            {suggestion}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 执行中的任务 */}
+                    {message.actions && (
+                      <div className="mt-4 space-y-2">
+                        {message.actions.map((action) => (
+                          <Card key={action.id} className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {action.status === 'executing' && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {action.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                {action.status === 'pending' && <Clock className="w-4 h-4 text-orange-500" />}
+                                <span className="text-sm">{action.title}</span>
+                              </div>
+                              {action.status === 'pending' && (
+                                <Button size="sm" variant="outline">
+                                  执行
+                                </Button>
+                              )}
+                            </div>
+                            {action.progress && (
+                              <Progress value={action.progress} className="mt-2" />
+                            )}
+                          </Card>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <div className="text-2xl font-bold mb-1">{stat.value}</div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* AI 助手对话 */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  AI 助手 / AI Assistant
-                </CardTitle>
-                <CardDescription>
-                  输入自然语言指令，AI 会帮你完成任务
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* 对话历史 */}
-                  <div className="space-y-3 min-h-[200px] max-h-[300px] overflow-y-auto p-4 bg-muted/30 rounded-lg">
-                    <div className="flex gap-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback>AI</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm">
-                          你好！我是你的 AI 助手。我可以帮你：
-                        </p>
-                        <ul className="text-sm text-muted-foreground mt-2 space-y-1">
-                          <li>• 创建和管理 Jira 任务</li>
-                          <li>• 发送 Slack 消息</li>
-                          <li>• 查看 GitHub PR</li>
-                          <li>• 安排日历会议</li>
-                        </ul>
+                  
+                  {message.role === 'user' && (
+                    <Avatar className="w-10 h-10 shrink-0">
+                      <AvatarFallback>{(user.name || user.email)?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))}
+              
+              {isProcessing && (
+                <div className="flex gap-4">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      <Brain className="w-5 h-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="bg-card border rounded-2xl p-4">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">AI 正在思考中...</span>
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
 
-                  {/* 输入框 */}
-                  <div className="flex gap-2">
-                    <Input 
-                      placeholder="输入指令，如：创建一个关于登录优化的 Jira 任务..."
-                      value={aiInput}
-                      onChange={(e) => setAiInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && aiInput.trim()) {
-                          // 处理 AI 输入
-                          setAiInput('')
-                        }
-                      }}
-                    />
-                    <Button size="icon">
-                      <Send className="w-4 h-4" />
+          {/* 输入区域 */}
+          <div className="border-t bg-card/50 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <Input
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && aiInput.trim()) {
+                        handleSendMessage()
+                      }
+                    }}
+                    placeholder="描述您需要的帮助，如：创建关于API优化的Jira任务并通知团队..."
+                    className="text-base py-4 px-4 rounded-2xl"
+                    disabled={isProcessing}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                      📎
                     </Button>
                   </div>
-
-                  {/* 快捷操作 */}
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
-                      创建任务
-                    </Badge>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
-                      查看日程
-                    </Badge>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
-                      发送消息
-                    </Badge>
-                    <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
-                      生成报告
-                    </Badge>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* 最近活动 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    最近活动 / Recent
-                  </span>
-                  <Button variant="ghost" size="sm">
-                    查看全部
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                      <div className={`mt-1 ${activity.color}`}>
-                        <activity.icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {activity.title}
-                          </p>
-                          {activity.urgent && (
-                            <Badge variant="destructive" className="text-xs shrink-0">
-                              紧急
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {activity.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {activity.time}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* 快速操作区 */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>快速操作 / Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4">
-                  <PlusCircle className="w-6 h-6" />
-                  <span className="text-xs">创建任务</span>
-                </Button>
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4">
-                  <Calendar className="w-6 h-6" />
-                  <span className="text-xs">安排会议</span>
-                </Button>
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4">
-                  <FileText className="w-6 h-6" />
-                  <span className="text-xs">生成报告</span>
-                </Button>
-                <Button variant="outline" className="h-auto flex-col gap-2 p-4">
-                  <Database className="w-6 h-6" />
-                  <span className="text-xs">数据分析</span>
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!aiInput.trim() || isProcessing}
+                  size="lg"
+                  className="rounded-2xl px-6"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+              
+              {/* 快捷建议 */}
+              <div className="flex flex-wrap gap-2 mt-4">
+                {[
+                  '分析今日待办事项',
+                  '生成项目进度报告',
+                  '优化团队工作负载',
+                  '创建紧急任务提醒',
+                  '安排明日会议'
+                ].map((suggestion, index) => (
+                  <Badge 
+                    key={index}
+                    variant="secondary" 
+                    className="cursor-pointer hover:bg-secondary/80"
+                    onClick={() => setAiInput(suggestion)}
+                  >
+                    {suggestion}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
         </main>
       </div>
+
+      {/* 右侧任务执行面板 (10%) */}
+      <aside className="w-72 border-l bg-card/30 flex flex-col">
+        <div className="p-4 border-b">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            执行队列 / Execution Queue
+          </h3>
+        </div>
+        
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-3">
+            {activeActions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">暂无执行任务</p>
+              </div>
+            ) : (
+              activeActions.map((action) => (
+                <Card key={action.id} className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    {action.status === 'executing' && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+                    {action.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                    {action.status === 'pending' && <Clock className="w-4 h-4 text-orange-500" />}
+                    {action.status === 'failed' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                    <span className="text-sm font-medium">{action.title}</span>
+                  </div>
+                  {action.progress !== undefined && (
+                    <Progress value={action.progress} className="mb-2" />
+                  )}
+                  <div className="flex gap-1">
+                    {action.status === 'pending' && (
+                      <Button size="sm" variant="outline" className="h-6 text-xs">
+                        <Play className="w-3 h-3 mr-1" />
+                        开始
+                      </Button>
+                    )}
+                    {action.status === 'executing' && (
+                      <Button size="sm" variant="outline" className="h-6 text-xs">
+                        <Pause className="w-3 h-3 mr-1" />
+                        暂停
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-6 text-xs">
+                      <RotateCcw className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </aside>
     </div>
   )
 }
