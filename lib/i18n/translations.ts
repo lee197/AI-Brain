@@ -19,6 +19,10 @@ export const translations = {
       language: "语言",
       theme: "主题",
       or: "或者",
+      back: "返回",
+      change: "更改",
+      create: "创建",
+      creating: "创建中...",
     },
     // 认证相关
     auth: {
@@ -159,6 +163,28 @@ export const translations = {
       
       // AI 响应示例
       aiResponse: "我正在处理您的请求，分析相关数据...\n\n基于当前项目状态，我建议：\n1. 优先处理高优先级任务\n2. 协调团队资源分配\n3. 设置进度里程碑提醒",
+      
+      // Context相关
+      selectContext: "选择工作空间",
+      searchContexts: "搜索工作空间...",
+      noContextsFound: "未找到匹配的工作空间",
+      createNewContext: "创建新工作空间",
+      manageContexts: "管理工作空间",
+      contextName: "工作空间名称",
+      contextDescription: "描述",
+      contextDescriptionPlaceholder: "简要描述这个工作空间的用途和目标...",
+      selectContextType: "选择最适合您工作方式的空间类型",
+      configureContext: "配置您的工作空间详细信息",
+      lifecycle: "生命周期",
+      advancedSettings: "高级设置",
+      enableAI: "启用 AI 助手",
+      enableAIDesc: "在此工作空间中使用 AI 功能",
+      allowInvites: "允许邀请成员",
+      allowInvitesDesc: "成员可以邀请其他人加入",
+      publicAccess: "公开访问",
+      publicAccessDesc: "允许组织内其他人发现此工作空间",
+      today: "今天",
+      yesterday: "昨天",
       features: {
         multiTool: {
           title: "多工具集成",
@@ -318,6 +344,10 @@ export const translations = {
       language: "Language",
       theme: "Theme",
       or: "Or",
+      back: "Back",
+      change: "Change",
+      create: "Create",
+      creating: "Creating...",
     },
     // Authentication
     auth: {
@@ -458,6 +488,28 @@ export const translations = {
       
       // AI Response Example
       aiResponse: "I'm processing your request and analyzing relevant data...\n\nBased on current project status, I recommend:\n1. Prioritize high-priority tasks\n2. Coordinate team resource allocation\n3. Set progress milestone reminders",
+      
+      // Context related
+      selectContext: "Select workspace",
+      searchContexts: "Search workspaces...",
+      noContextsFound: "No matching workspaces found",
+      createNewContext: "Create new workspace",
+      manageContexts: "Manage workspaces",
+      contextName: "Workspace name",
+      contextDescription: "Description",
+      contextDescriptionPlaceholder: "Brief description of the purpose and goals of this workspace...",
+      selectContextType: "Select the workspace type that best fits your working style",
+      configureContext: "Configure your workspace details",
+      lifecycle: "Lifecycle",
+      advancedSettings: "Advanced settings",
+      enableAI: "Enable AI assistant",
+      enableAIDesc: "Use AI features in this workspace",
+      allowInvites: "Allow member invitations",
+      allowInvitesDesc: "Members can invite others to join",
+      publicAccess: "Public access",
+      publicAccessDesc: "Allow others in the organization to discover this workspace",
+      today: "Today",
+      yesterday: "Yesterday",
       features: {
         multiTool: {
           title: "Multi-tool Integration",

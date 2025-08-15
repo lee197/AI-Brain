@@ -12,8 +12,12 @@ import { Progress } from '@/components/ui/progress'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { ContextSwitcher } from '@/components/context-switcher'
+import { CreateContextDialog } from '@/components/create-context-dialog'
 import { useAuth } from '@/hooks/use-auth'
+import { useContextManager } from '@/hooks/use-context'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Context } from '@/types/context'
 import { 
   MessageSquare, 
   CheckCircle2,
@@ -96,10 +100,17 @@ export default function DashboardPage() {
   const { t } = useLanguage()
   const { user, loading } = useAuth()
   const router = useRouter()
+  const { 
+    currentContext, 
+    setCurrentContext, 
+    createContext, 
+    loading: contextLoading 
+  } = useContextManager()
   const [aiInput, setAiInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [activeActions, setActiveActions] = useState<ActionItem[]>([])
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   // 检查认证状态
   useEffect(() => {
@@ -165,10 +176,28 @@ ${t.dashboard.howCanIHelp}`
     })
   }, [t])
 
+  // Context相关处理函数
+  const handleContextChange = (context: Context) => {
+    setCurrentContext(context)
+    // 清空当前消息，为新Context重新开始对话
+    setMessages([])
+  }
+
+  const handleCreateContext = () => {
+    setShowCreateDialog(true)
+  }
+
+  const handleContextCreated = (context: Context) => {
+    setCurrentContext(context)
+    setShowCreateDialog(false)
+  }
+
   // 定义处理函数
   const handleSendMessage = () => {
     if (!aiInput.trim()) return
 
+    const contextPrefix = currentContext ? `[${currentContext.name}] ` : ''
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -180,18 +209,22 @@ ${t.dashboard.howCanIHelp}`
     setAiInput('')
     setIsProcessing(true)
 
-    // 模拟 AI 响应
+    // 模拟 AI 响应（Context感知）
     setTimeout(() => {
+      const contextAwareResponse = currentContext 
+        ? `${contextPrefix}${t.dashboard.aiResponse}\n\n基于当前工作空间"${currentContext.name}"的上下文，我建议：\n1. 在此${currentContext.type === 'PROJECT' ? '项目' : currentContext.type === 'DEPARTMENT' ? '部门' : '工作空间'}内处理相关任务\n2. 确保与团队成员协调\n3. 遵循工作空间的设置和规范`
+        : t.dashboard.aiResponse
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: t.dashboard.aiResponse,
+        content: contextAwareResponse,
         timestamp: new Date(),
         actions: [
           {
             id: 'action1',
             type: 'create_task',
-            title: t.dashboard.createJiraTask,
+            title: currentContext ? `在 ${currentContext.name} 中创建任务` : t.dashboard.createJiraTask,
             status: 'pending'
           }
         ]
@@ -438,6 +471,12 @@ ${t.dashboard.howCanIHelp}`
             </div>
 
             <div className="flex items-center gap-4">
+              <ContextSwitcher
+                currentContext={currentContext}
+                onContextChange={handleContextChange}
+                onCreateNew={handleCreateContext}
+                className="mr-2"
+              />
               <Badge variant="outline" className="text-xs">
                 <Cpu className="w-3 h-3 mr-1" />
                 {t.dashboard.aiMode}: {t.dashboard.enhanced}
@@ -691,6 +730,13 @@ ${t.dashboard.howCanIHelp}`
         </ScrollArea>
         </Panel>
       </PanelGroup>
+
+      {/* Context创建对话框 */}
+      <CreateContextDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onContextCreated={handleContextCreated}
+      />
     </div>
   )
 }
