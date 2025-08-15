@@ -106,10 +106,9 @@ export default function DashboardPage() {
     }
   }, [user, loading, router])
 
-  // 初始化示例对话
+  // 初始化和更新示例对话（响应语言变化）
   useEffect(() => {
-    if (messages.length === 0) {
-      const aiGreeting = `${t.dashboard.aiGreeting}
+    const aiGreeting = `${t.dashboard.aiGreeting}
 
 • ${t.dashboard.capabilities.taskManagement}
 • ${t.dashboard.capabilities.teamCollaboration}
@@ -124,20 +123,44 @@ ${t.dashboard.todayFocus}
 
 ${t.dashboard.howCanIHelp}`
       
-      const initialMessage: Message = {
-        id: '1',
-        role: 'assistant',
-        content: aiGreeting,
-        timestamp: new Date(),
-        suggestions: [
-          t.dashboard.suggestions.todayTasks,
-          t.dashboard.suggestions.progressReport,
-          t.dashboard.suggestions.optimizeWorkload,
-          t.dashboard.suggestions.scheduleMeeting
-        ]
-      }
-      setMessages([initialMessage])
+    const initialMessage: Message = {
+      id: '1',
+      role: 'assistant',
+      content: aiGreeting,
+      timestamp: new Date(),
+      suggestions: [
+        t.dashboard.suggestions.todayTasks,
+        t.dashboard.suggestions.progressReport,
+        t.dashboard.suggestions.optimizeWorkload,
+        t.dashboard.suggestions.scheduleMeeting
+      ]
     }
+
+    // 更新或创建初始消息，确保语言切换时内容也更新
+    setMessages(prevMessages => {
+      if (prevMessages.length === 0) {
+        return [initialMessage]
+      } else {
+        // 更新现有消息中的AI回复内容以匹配当前语言
+        return prevMessages.map((msg) => {
+          if (msg.role === 'assistant' && msg.id === '1') {
+            // 更新初始AI消息
+            return { ...initialMessage, timestamp: msg.timestamp }
+          } else if (msg.role === 'assistant' && msg.actions) {
+            // 更新带有操作的AI消息
+            return {
+              ...msg,
+              content: t.dashboard.aiResponse,
+              actions: msg.actions.map(action => ({
+                ...action,
+                title: t.dashboard.createJiraTask
+              }))
+            }
+          }
+          return msg
+        })
+      }
+    })
   }, [t])
 
   // 定义处理函数
