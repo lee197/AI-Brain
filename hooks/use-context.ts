@@ -36,14 +36,19 @@ export function useContextManager() {
 
   // 从localStorage恢复当前Context
   useEffect(() => {
-    const savedContextId = localStorage.getItem('ai-brain-current-context')
-    if (savedContextId && contexts.length > 0) {
-      const savedContext = contexts.find(ctx => ctx.id === savedContextId)
-      if (savedContext) {
-        setCurrentContextState(savedContext)
+    if (typeof window !== 'undefined') {
+      const savedContextId = localStorage.getItem('ai-brain-current-context')
+      if (savedContextId && contexts.length > 0) {
+        const savedContext = contexts.find(ctx => ctx.id === savedContextId)
+        if (savedContext) {
+          setCurrentContextState(savedContext)
+        }
+      } else if (contexts.length > 0 && !currentContext) {
+        // 如果没有保存的Context，自动选择第一个
+        setCurrentContextState(contexts[0])
       }
     } else if (contexts.length > 0 && !currentContext) {
-      // 如果没有保存的Context，自动选择第一个
+      // 服务端渲染时，如果有contexts，选择第一个
       setCurrentContextState(contexts[0])
     }
   }, [contexts])
@@ -51,10 +56,12 @@ export function useContextManager() {
   // 设置当前Context
   const setCurrentContext = useCallback((context: Context | null) => {
     setCurrentContextState(context)
-    if (context) {
-      localStorage.setItem('ai-brain-current-context', context.id)
-    } else {
-      localStorage.removeItem('ai-brain-current-context')
+    if (typeof window !== 'undefined') {
+      if (context) {
+        localStorage.setItem('ai-brain-current-context', context.id)
+      } else {
+        localStorage.removeItem('ai-brain-current-context')
+      }
     }
   }, [])
 

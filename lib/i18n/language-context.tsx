@@ -13,26 +13,34 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('zh')
+  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
+    // 标记为已水合，避免 SSR/CSR 不匹配
+    setIsHydrated(true)
+    
     // 从 localStorage 读取用户语言偏好
-    const savedLang = localStorage.getItem('preferredLanguage') as Language
-    if (savedLang && (savedLang === 'zh' || savedLang === 'en')) {
-      setLanguageState(savedLang)
-    } else {
-      // 检测浏览器语言
-      const browserLang = navigator.language.toLowerCase()
-      if (browserLang.includes('zh')) {
-        setLanguageState('zh')
+    if (typeof window !== 'undefined') {
+      const savedLang = localStorage.getItem('preferredLanguage') as Language
+      if (savedLang && (savedLang === 'zh' || savedLang === 'en')) {
+        setLanguageState(savedLang)
       } else {
-        setLanguageState('en')
+        // 检测浏览器语言
+        const browserLang = navigator.language.toLowerCase()
+        if (browserLang.includes('zh')) {
+          setLanguageState('zh')
+        } else {
+          setLanguageState('en')
+        }
       }
     }
   }, [])
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang)
-    localStorage.setItem('preferredLanguage', lang)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('preferredLanguage', lang)
+    }
   }
 
   const value = {
