@@ -13,7 +13,8 @@ import { LanguageSwitcher } from '@/components/language-switcher'
 import { UserMenu } from '@/components/user-menu'
 import { CreateContextDialog } from '@/components/create-context-dialog'
 import { useAuth } from '@/hooks/use-auth'
-import { Context, ContextType, CONTEXT_TYPE_INFO } from '@/types/context'
+import { Context, ContextType } from '@/types/context'
+import { getContextTypeInfo } from '@/lib/context-utils'
 import { 
   Search,
   Plus,
@@ -124,13 +125,13 @@ export default function ContextsPage() {
     
     if (days === 0) return t.dashboard.today || '今天'
     if (days === 1) return t.dashboard.yesterday || '昨天'
-    if (days < 7) return `${days}天前`
-    if (days < 30) return `${Math.floor(days / 7)}周前`
-    return `${Math.floor(days / 30)}个月前`
+    if (days < 7) return `${days}${t.dashboard.contexts.daysAgo}`
+    if (days < 30) return `${Math.floor(days / 7)}${t.dashboard.contexts.weeksAgo}`
+    return `${Math.floor(days / 30)}${t.dashboard.contexts.monthsAgo}`
   }
 
   const getContextIcon = (type: ContextType) => {
-    return CONTEXT_TYPE_INFO[type]?.icon || '📁'
+    return getContextTypeInfo(type, language).icon || '📁'
   }
 
   const getContextColor = (type: ContextType) => {
@@ -145,12 +146,12 @@ export default function ContextsPage() {
   }
 
   const contextTypeFilters = [
-    { key: 'ALL' as const, label: '全部', icon: Globe },
-    { key: 'PROJECT' as ContextType, label: '项目', icon: Target },
-    { key: 'DEPARTMENT' as ContextType, label: '部门', icon: Building2 },
-    { key: 'TEAM' as ContextType, label: '团队', icon: Users },
-    { key: 'CLIENT' as ContextType, label: '客户', icon: Shield },
-    { key: 'PERSONAL' as ContextType, label: '个人', icon: BookOpen }
+    { key: 'ALL' as const, label: t.dashboard.contexts.all, icon: Globe },
+    { key: 'PROJECT' as ContextType, label: t.dashboard.contexts.project, icon: Target },
+    { key: 'DEPARTMENT' as ContextType, label: t.dashboard.contexts.department, icon: Building2 },
+    { key: 'TEAM' as ContextType, label: t.dashboard.contexts.team, icon: Users },
+    { key: 'CLIENT' as ContextType, label: t.dashboard.contexts.client, icon: Shield },
+    { key: 'PERSONAL' as ContextType, label: t.dashboard.contexts.personal, icon: BookOpen }
   ]
 
   if (loading) {
@@ -176,7 +177,7 @@ export default function ContextsPage() {
                 <Rocket className="w-8 h-8 text-primary" />
                 <div>
                   <h1 className="text-xl font-semibold">AI Brain</h1>
-                  <p className="text-sm text-muted-foreground">选择您的工作空间</p>
+                  <p className="text-sm text-muted-foreground">{t.dashboard.contexts.title}</p>
                 </div>
               </div>
             </div>
@@ -195,10 +196,10 @@ export default function ContextsPage() {
         <div className="mb-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-2">
-              欢迎回来，{user.name}
+              {t.dashboard.contexts.welcomeBack}，{user.name}
             </h2>
             <p className="text-muted-foreground text-lg">
-              选择一个工作空间开始您的 AI 驱动工作流程
+              {t.dashboard.contexts.selectWorkspace}
             </p>
           </div>
 
@@ -208,7 +209,7 @@ export default function ContextsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="搜索工作空间..."
+                placeholder={t.dashboard.contexts.searchWorkspaces}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 h-12 text-base"
@@ -221,7 +222,7 @@ export default function ContextsPage() {
               className="h-12 px-6"
             >
               <Plus className="w-4 h-4 mr-2" />
-              创建新工作空间
+              {t.dashboard.contexts.createNewWorkspace}
             </Button>
           </div>
 
@@ -251,14 +252,14 @@ export default function ContextsPage() {
           <div className="text-center py-12">
             <FolderOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
             <h3 className="text-lg font-semibold mb-2">
-              {searchTerm ? '未找到匹配的工作空间' : '暂无工作空间'}
+              {searchTerm ? t.dashboard.contexts.noMatchingWorkspaces : t.dashboard.contexts.noWorkspaces}
             </h3>
             <p className="text-muted-foreground mb-6">
-              {searchTerm ? '尝试调整搜索条件' : '创建您的第一个工作空间开始使用'}
+              {searchTerm ? t.dashboard.contexts.tryAdjustSearch : t.dashboard.contexts.noWorkspacesDesc}
             </p>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              创建工作空间
+              {t.dashboard.contexts.createWorkspace}
             </Button>
           </div>
         ) : (
@@ -268,7 +269,7 @@ export default function ContextsPage() {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="text-2xl">{getContextIcon(type as ContextType)}</div>
                   <h3 className="text-lg font-semibold">
-                    {CONTEXT_TYPE_INFO[type as ContextType]?.title}
+                    {getContextTypeInfo(type as ContextType, language).title}
                   </h3>
                   <Badge variant="outline" className="text-xs">
                     {typeContexts.length}
@@ -317,7 +318,7 @@ export default function ContextsPage() {
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Users className="w-3 h-3" />
-                            <span>{context.members.length} 成员</span>
+                            <span>{context.members.length} {t.dashboard.contexts.members}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />

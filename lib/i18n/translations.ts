@@ -185,6 +185,54 @@ export const translations = {
       publicAccessDesc: "允许组织内其他人发现此工作空间",
       today: "今天",
       yesterday: "昨天",
+      unknown: "未知",
+      // Context 页面专用翻译
+      contexts: {
+        title: "选择您的工作空间",
+        welcomeBack: "欢迎回来",
+        selectWorkspace: "选择一个工作空间开始您的 AI 驱动工作流程",
+        searchWorkspaces: "搜索工作空间...",
+        createNewWorkspace: "创建新工作空间",
+        all: "全部",
+        project: "项目",
+        department: "部门", 
+        team: "团队",
+        client: "客户",
+        personal: "个人",
+        noWorkspaces: "暂无工作空间",
+        noWorkspacesDesc: "创建您的第一个工作空间开始使用",
+        noMatchingWorkspaces: "未找到匹配的工作空间",
+        tryAdjustSearch: "尝试调整搜索条件",
+        createWorkspace: "创建工作空间",
+        members: "成员",
+        monthsAgo: "个月前",
+        weeksAgo: "周前",
+        daysAgo: "天前",
+        switch: "切换",
+      },
+      // Context 类型信息
+      contextTypes: {
+        PROJECT: {
+          title: "项目",
+          description: "有明确起止时间、目标导向、跨部门协作"
+        },
+        DEPARTMENT: {
+          title: "部门",
+          description: "组织架构单位，永久性团队，基于职能和专业领域"
+        },
+        TEAM: {
+          title: "团队",
+          description: "敏捷小组，短期任务导向，临时或半永久性"
+        },
+        CLIENT: {
+          title: "客户",
+          description: "外部合作项目，涉及客户服务、销售或合作伙伴"
+        },
+        PERSONAL: {
+          title: "个人",
+          description: "个人工作空间，私人任务、学习和职业发展"
+        }
+      },
       features: {
         multiTool: {
           title: "多工具集成",
@@ -510,6 +558,54 @@ export const translations = {
       publicAccessDesc: "Allow others in the organization to discover this workspace",
       today: "Today",
       yesterday: "Yesterday",
+      unknown: "Unknown",
+      // Context page specific translations
+      contexts: {
+        title: "Choose Your Workspace",
+        welcomeBack: "Welcome back",
+        selectWorkspace: "Select a workspace to start your AI-driven workflow",
+        searchWorkspaces: "Search workspaces...",
+        createNewWorkspace: "Create new workspace",
+        all: "All",
+        project: "Project",
+        department: "Department", 
+        team: "Team",
+        client: "Client",
+        personal: "Personal",
+        noWorkspaces: "No workspaces",
+        noWorkspacesDesc: "Create your first workspace to get started",
+        noMatchingWorkspaces: "No matching workspaces found",
+        tryAdjustSearch: "Try adjusting search criteria",
+        createWorkspace: "Create workspace",
+        members: "members",
+        monthsAgo: "months ago",
+        weeksAgo: "weeks ago",
+        daysAgo: "days ago",
+        switch: "Switch",
+      },
+      // Context type information
+      contextTypes: {
+        PROJECT: {
+          title: "Project",
+          description: "Goal-oriented with clear timelines, cross-departmental collaboration"
+        },
+        DEPARTMENT: {
+          title: "Department",
+          description: "Organizational unit, permanent team based on functions and expertise"
+        },
+        TEAM: {
+          title: "Team",
+          description: "Agile group, task-oriented, temporary or semi-permanent"
+        },
+        CLIENT: {
+          title: "Client",
+          description: "External collaboration projects involving client service, sales or partnerships"
+        },
+        PERSONAL: {
+          title: "Personal",
+          description: "Personal workspace for private tasks, learning and career development"
+        }
+      },
       features: {
         multiTool: {
           title: "Multi-tool Integration",

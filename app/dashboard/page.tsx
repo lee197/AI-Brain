@@ -345,7 +345,7 @@ ${t.dashboard.howCanIHelp}`
                 onClick={() => router.push('/contexts')}
                 className="text-xs"
               >
-                切换
+                {t.dashboard.contexts.switch}
               </Button>
             </div>
           ) : (
