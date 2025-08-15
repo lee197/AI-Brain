@@ -174,7 +174,15 @@ ${t.dashboard.howCanIHelp}`
   // 如果没有选择Context，重定向到Context选择页面
   useEffect(() => {
     if (!contextLoading && !currentContext) {
-      router.push('/contexts')
+      // 检查localStorage中是否有保存的Context ID
+      const savedContextId = typeof window !== 'undefined' 
+        ? localStorage.getItem('ai-brain-current-context')
+        : null
+      
+      // 只有在没有保存的Context ID时才重定向
+      if (!savedContextId) {
+        router.push('/contexts')
+      }
     }
   }, [currentContext, contextLoading, router])
 
