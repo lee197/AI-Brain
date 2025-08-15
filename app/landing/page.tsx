@@ -1,12 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useLanguage } from '@/lib/i18n/language-context'
+import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
-import { useAuth } from '@/hooks/use-auth'
 import { 
   MessageSquare, 
   Zap, 
@@ -21,9 +20,8 @@ import {
   BarChart3
 } from 'lucide-react'
 
-export default function LandingPage() {
+export default function HomePage() {
   const { t } = useLanguage()
-  const { user } = useAuth()
 
   const features = [
     {
@@ -103,29 +101,7 @@ export default function LandingPage() {
             
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <Link href="/dashboard">
-                    <Button variant="outline">
-                      进入工作台 / Dashboard
-                    </Button>
-                  </Link>
-                  <UserMenu />
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link href="/login">
-                    <Button variant="outline">
-                      {t.auth.login}
-                    </Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button>
-                      {t.auth.signup}
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <UserMenu />
             </div>
           </div>
         </div>

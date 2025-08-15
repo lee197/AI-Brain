@@ -28,8 +28,8 @@ export default function LoginPage() {
     if (state?.success && state?.user) {
       // Store user data in localStorage for mock auth
       setMockUserClient(state.user)
-      // Redirect to home page
-      router.push('/')
+      // Redirect to dashboard
+      router.push('/dashboard')
     }
   }, [state, router])
 

@@ -9,10 +9,11 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // 公共路由列表
-  const publicRoutes = ['/login', '/signup', '/ui-demo']
+  // 公共路由列表 (包括首页营销页面)
+  const publicRoutes = ['/', '/login', '/signup', '/ui-demo']
   const isPublicRoute = publicRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
+    request.nextUrl.pathname === route || 
+    (route !== '/' && request.nextUrl.pathname.startsWith(route))
   )
   
   // API 路由始终可访问
@@ -29,10 +30,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // 已登录且访问认证页面，重定向到首页
+    // 已登录且访问认证页面，重定向到工作台
     if (mockUser && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
 
@@ -108,10 +109,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 已认证且访问认证页面，重定向到首页
+  // 已认证且访问认证页面，重定向到工作台
   if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
