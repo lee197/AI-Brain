@@ -33,7 +33,7 @@ export default function LandingPage() {
       description: t.dashboard.features.multiTool.desc,
       badge: null,
       color: "bg-blue-500",
-      action: "连接工具 / Connect Tools"
+      action: t.dashboard.landing.featureActions.connectTools
     },
     {
       icon: MessageSquare,
@@ -41,7 +41,7 @@ export default function LandingPage() {
       description: t.dashboard.features.naturalLanguage.desc,
       badge: t.dashboard.features.naturalLanguage.badge,
       color: "bg-purple-500",
-      action: "开始聊天 / Start Chat"
+      action: t.dashboard.landing.featureActions.startChat
     },
     {
       icon: Zap,
@@ -49,7 +49,7 @@ export default function LandingPage() {
       description: t.dashboard.features.automation.desc,
       badge: t.dashboard.features.automation.badge,
       color: "bg-green-500",
-      action: "创建工作流 / Create Workflow"
+      action: t.dashboard.landing.featureActions.createWorkflow
     },
     {
       icon: Brain,
@@ -57,7 +57,7 @@ export default function LandingPage() {
       description: t.dashboard.features.contextAware.desc,
       badge: t.dashboard.features.contextAware.badge,
       color: "bg-orange-500",
-      action: "查看洞察 / View Insights"
+      action: t.dashboard.landing.featureActions.viewInsights
     },
     {
       icon: Clock,
@@ -65,7 +65,7 @@ export default function LandingPage() {
       description: t.dashboard.features.realTimeSync.desc,
       badge: t.dashboard.features.realTimeSync.badge,
       color: "bg-cyan-500",
-      action: "实时数据 / Real-time Data"
+      action: t.dashboard.landing.featureActions.realTimeData
     },
     {
       icon: Shield,
@@ -73,15 +73,15 @@ export default function LandingPage() {
       description: t.dashboard.features.security.desc,
       badge: t.dashboard.features.security.badge,
       color: "bg-red-500",
-      action: "安全设置 / Security Settings"
+      action: t.dashboard.landing.featureActions.securitySettings
     }
   ]
 
   const quickActions = [
-    { icon: MessageSquare, label: "AI 聊天 / AI Chat", href: "/chat" },
-    { icon: Globe, label: "集成 / Integrations", href: "/integrations" },
-    { icon: BarChart3, label: "洞察 / Insights", href: "/insights" },
-    { icon: Users, label: "任务 / Tasks", href: "/tasks" }
+    { icon: MessageSquare, label: t.dashboard.landing.quickActions.aiChat, href: "/chat" },
+    { icon: Globe, label: t.dashboard.landing.quickActions.integrations, href: "/integrations" },
+    { icon: BarChart3, label: t.dashboard.landing.quickActions.insights, href: "/insights" },
+    { icon: Users, label: t.dashboard.landing.quickActions.tasks, href: "/tasks" }
   ]
 
   return (
@@ -108,7 +108,7 @@ export default function LandingPage() {
                 <div className="flex items-center gap-2">
                   <Link href="/dashboard">
                     <Button variant="outline">
-                      进入工作台 / Dashboard
+                      {t.dashboard.landing.enterDashboard}
                     </Button>
                   </Link>
                   <UserMenu />
@@ -202,22 +202,20 @@ export default function LandingPage() {
           <CardContent className="text-center p-8">
             <div className="max-w-2xl mx-auto">
               <h3 className="text-2xl font-bold mb-4">
-                准备开始您的 AI 驱动工作流程？ / Ready to Start Your AI-Powered Workflow?
+                {t.dashboard.landing.cta.title}
               </h3>
               <p className="text-muted-foreground mb-6">
-                连接您的第一个工具，体验 AI Brain 如何改变您的工作方式。平均为团队节省每周 8-10 小时的时间。
-                <br />
-                Connect your first tool and experience how AI Brain transforms your workflow. Save 8-10 hours per week on average.
+                {t.dashboard.landing.cta.description}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" className="group">
                   <Plus className="w-5 h-5 mr-2" />
-                  <span>连接第一个工具 / Connect First Tool</span>
+                  <span>{t.dashboard.landing.cta.connectFirstTool}</span>
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <Button size="lg" variant="outline">
                   <MessageSquare className="w-5 h-5 mr-2" />
-                  <span>开始 AI 对话 / Start AI Chat</span>
+                  <span>{t.dashboard.landing.cta.startAIChat}</span>
                 </Button>
               </div>
             </div>
@@ -228,13 +226,13 @@ export default function LandingPage() {
         <div className="mt-12 text-center">
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
             <a href="/ui-demo" className="hover:text-primary transition-colors">
-              查看 UI 组件 / View UI Components 🎨
+              {t.dashboard.landing.footer.viewUIComponents}
             </a>
             <a href="/settings" className="hover:text-primary transition-colors">
-              设置 / Settings
+              {t.dashboard.landing.footer.settings}
             </a>
             <a href="/help" className="hover:text-primary transition-colors">
-              帮助 / Help
+              {t.dashboard.landing.footer.help}
             </a>
           </div>
         </div>

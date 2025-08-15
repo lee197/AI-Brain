@@ -196,6 +196,36 @@ export const translations = {
         viewComponents: "查看 UI 组件 🎨",
         startExperience: "开始您的 AI 驱动工作体验",
       },
+      
+      // Landing page 特定内容
+      landing: {
+        enterDashboard: "进入工作台",
+        quickActions: {
+          aiChat: "AI 聊天",
+          integrations: "集成",
+          insights: "洞察",
+          tasks: "任务",
+        },
+        featureActions: {
+          connectTools: "连接工具",
+          startChat: "开始聊天", 
+          createWorkflow: "创建工作流",
+          viewInsights: "查看洞察",
+          realTimeData: "实时数据",
+          securitySettings: "安全设置",
+        },
+        cta: {
+          title: "准备开始您的 AI 驱动工作流程？",
+          description: "连接您的第一个工具，体验 AI Brain 如何改变您的工作方式。平均为团队节省每周 8-10 小时的时间。",
+          connectFirstTool: "连接第一个工具",
+          startAIChat: "开始 AI 对话",
+        },
+        footer: {
+          viewUIComponents: "查看 UI 组件 🎨",
+          settings: "设置",
+          help: "帮助",
+        },
+      },
     },
     // UI 展示页
     uiDemo: {
@@ -464,6 +494,36 @@ export const translations = {
         manageIntegrations: "Manage Integrations 🔧",
         viewComponents: "View UI Components 🎨",
         startExperience: "Start your AI-powered work experience",
+      },
+      
+      // Landing page specific content
+      landing: {
+        enterDashboard: "Dashboard",
+        quickActions: {
+          aiChat: "AI Chat",
+          integrations: "Integrations",
+          insights: "Insights",
+          tasks: "Tasks",
+        },
+        featureActions: {
+          connectTools: "Connect Tools",
+          startChat: "Start Chat",
+          createWorkflow: "Create Workflow", 
+          viewInsights: "View Insights",
+          realTimeData: "Real-time Data",
+          securitySettings: "Security Settings",
+        },
+        cta: {
+          title: "Ready to Start Your AI-Powered Workflow?",
+          description: "Connect your first tool and experience how AI Brain transforms your workflow. Save 8-10 hours per week on average.",
+          connectFirstTool: "Connect First Tool",
+          startAIChat: "Start AI Chat",
+        },
+        footer: {
+          viewUIComponents: "View UI Components 🎨",
+          settings: "Settings", 
+          help: "Help",
+        },
       },
     },
     // UI Demo
