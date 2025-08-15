@@ -49,7 +49,7 @@ export function UserMenu() {
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
             <AvatarImage 
-              src={user?.user_metadata?.avatar_url} 
+              src={user?.user_metadata?.avatar_url && user.user_metadata.avatar_url.startsWith('http') ? user.user_metadata.avatar_url : undefined} 
               alt={user?.user_metadata?.full_name || user?.email || ''} 
             />
             <AvatarFallback className="gradient-bg">

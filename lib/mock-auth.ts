@@ -8,7 +8,7 @@ export const DEMO_USERS = {
     password: 'admin123',
     name: '管理员 Admin',
     id: 'mock-user-admin',
-    avatar: '👨‍💼',
+    avatar: '', // 移除emoji，使用initials作为fallback
     role: 'admin'
   },
   demo: {
@@ -16,7 +16,7 @@ export const DEMO_USERS = {
     password: 'demo123',
     name: '演示用户 Demo User',
     id: 'mock-user-demo',
-    avatar: '👤',
+    avatar: '', // 移除emoji，使用initials作为fallback
     role: 'user'
   },
   test: {
@@ -24,7 +24,7 @@ export const DEMO_USERS = {
     password: 'test123',
     name: '测试用户 Test User',
     id: 'mock-user-test',
-    avatar: '🧪',
+    avatar: '', // 移除emoji，使用initials作为fallback
     role: 'user'
   }
 }
@@ -98,7 +98,7 @@ export async function mockSignup(email: string, password: string, name: string):
     id: `mock-user-${Date.now()}`,
     email: email,
     name: name,
-    avatar: '👤',
+    avatar: '', // 使用空字符串，让AvatarFallback显示initials
     role: 'user',
     createdAt: new Date().toISOString()
   }
@@ -149,7 +149,7 @@ export async function mockOAuthLogin(provider: 'google' | 'github'): Promise<{ u
     id: `mock-oauth-${provider}-${Date.now()}`,
     email: `user@${provider}.com`,
     name: `${provider === 'google' ? 'Google' : 'GitHub'} User`,
-    avatar: provider === 'google' ? '🔵' : '⚫',
+    avatar: '', // 使用空字符串，让AvatarFallback显示initials
     role: 'user',
     createdAt: new Date().toISOString()
   }
