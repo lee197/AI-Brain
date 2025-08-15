@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
       
       if (isValidSession) {
         const url = request.nextUrl.clone()
-        url.pathname = '/dashboard'
+        url.pathname = '/contexts'
         return NextResponse.redirect(url)
       }
     }
@@ -120,10 +120,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 已认证且访问认证页面，重定向到工作台
+  // 已认证且访问认证页面，重定向到Context选择页面
   if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/contexts'
     return NextResponse.redirect(url)
   }
 

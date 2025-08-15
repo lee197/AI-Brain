@@ -12,8 +12,6 @@ import { Progress } from '@/components/ui/progress'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
-import { ContextSwitcher } from '@/components/context-switcher'
-import { CreateContextDialog } from '@/components/create-context-dialog'
 import { useAuth } from '@/hooks/use-auth'
 import { useContextManager } from '@/hooks/use-context'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
@@ -102,15 +100,12 @@ export default function DashboardPage() {
   const router = useRouter()
   const { 
     currentContext, 
-    setCurrentContext, 
-    createContext, 
     loading: contextLoading 
   } = useContextManager()
   const [aiInput, setAiInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [activeActions, setActiveActions] = useState<ActionItem[]>([])
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   // 检查认证状态
   useEffect(() => {
@@ -176,21 +171,12 @@ ${t.dashboard.howCanIHelp}`
     })
   }, [t])
 
-  // Context相关处理函数
-  const handleContextChange = (context: Context) => {
-    setCurrentContext(context)
-    // 清空当前消息，为新Context重新开始对话
-    setMessages([])
-  }
-
-  const handleCreateContext = () => {
-    setShowCreateDialog(true)
-  }
-
-  const handleContextCreated = (context: Context) => {
-    setCurrentContext(context)
-    setShowCreateDialog(false)
-  }
+  // 如果没有选择Context，重定向到Context选择页面
+  useEffect(() => {
+    if (!contextLoading && !currentContext) {
+      router.push('/contexts')
+    }
+  }, [currentContext, contextLoading, router])
 
   // 定义处理函数
   const handleSendMessage = () => {
@@ -324,14 +310,41 @@ ${t.dashboard.howCanIHelp}`
       <PanelGroup direction="horizontal" className="h-full">
         {/* 左侧智能概览面板 */}
         <Panel defaultSize={25} minSize={15} maxSize={40} className="bg-card/50 flex flex-col">
-        {/* Context 切换器区域 */}
+        {/* 当前Context显示区域 */}
         <div className="p-4 border-b">
-          <ContextSwitcher
-            currentContext={currentContext}
-            onContextChange={handleContextChange}
-            onCreateNew={handleCreateContext}
-            className="w-full"
-          />
+          {currentContext ? (
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">
+                {currentContext.type === 'PROJECT' ? '🚀' :
+                 currentContext.type === 'DEPARTMENT' ? '🏢' :
+                 currentContext.type === 'TEAM' ? '👥' :
+                 currentContext.type === 'CLIENT' ? '🤝' : '📝'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm truncate">
+                  {currentContext.name}
+                </h3>
+                <Badge variant="secondary" className="text-xs mt-1">
+                  {currentContext.type === 'PROJECT' ? '项目' :
+                   currentContext.type === 'DEPARTMENT' ? '部门' :
+                   currentContext.type === 'TEAM' ? '团队' :
+                   currentContext.type === 'CLIENT' ? '客户' : '个人'}
+                </Badge>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => router.push('/contexts')}
+                className="text-xs"
+              >
+                切换
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+            </div>
+          )}
         </div>
 
         {/* 三模块架构状态 */}
@@ -722,12 +735,6 @@ ${t.dashboard.howCanIHelp}`
         </Panel>
       </PanelGroup>
 
-      {/* Context创建对话框 */}
-      <CreateContextDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onContextCreated={handleContextCreated}
-      />
     </div>
   )
 }
