@@ -30,11 +30,22 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // 已登录且访问认证页面，重定向到工作台
-    if (mockUser && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
+    // 已登录且访问认证页面，只在特定情况下重定向：
+    // 1. 有有效的用户会话
+    // 2. 不是明确的登出操作 (通过 ?logout 参数检测)
+    // 3. 不是刷新登录的情况 (通过 ?refresh 参数检测)
+    const isExplicitLogout = request.nextUrl.searchParams.get('logout') === 'true'
+    const isRefreshLogin = request.nextUrl.searchParams.get('refresh') === 'true'
+    
+    if (mockUser && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') && !isExplicitLogout && !isRefreshLogin) {
+      // 检查用户会话是否仍然有效 (简单检查：用户对象是否包含必需字段)
+      const isValidSession = mockUser.id && mockUser.email && mockUser.name
+      
+      if (isValidSession) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
     }
 
     return response

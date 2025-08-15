@@ -185,7 +185,7 @@ export async function signOut() {
     cookieStore.delete('mock-auth-user')
     
     revalidatePath('/', 'layout')
-    redirect('/login')
+    redirect('/login?logout=true')
     return
   }
 
@@ -198,7 +198,7 @@ export async function signOut() {
   }
   
   revalidatePath('/', 'layout')
-  redirect('/login')
+  redirect('/login?logout=true')
 }
 
 export async function signInWithProvider(provider: 'google' | 'github') {

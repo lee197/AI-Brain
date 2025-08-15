@@ -225,6 +225,12 @@ export default function LandingPage() {
         {/* Footer Links */}
         <div className="mt-12 text-center">
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
+            <a href="/login" className="hover:text-primary transition-colors">
+              🔐 {t.auth?.login || '登录 / Login'}
+            </a>
+            <a href="/login?refresh=true" className="hover:text-primary transition-colors">
+              🔄 Clear & Login
+            </a>
             <a href="/ui-demo" className="hover:text-primary transition-colors">
               {t.dashboard.landing.footer.viewUIComponents}
             </a>

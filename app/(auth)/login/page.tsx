@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useActionState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +22,12 @@ export default function LoginPage() {
   const [state, formAction] = useActionState(login, initialState)
   const { t } = useLanguage()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Check for URL parameters
+  const isLogout = searchParams.get('logout') === 'true'
+  const isRefresh = searchParams.get('refresh') === 'true'
+  const message = searchParams.get('message')
 
   // Handle successful login response
   useEffect(() => {
@@ -35,6 +41,19 @@ export default function LoginPage() {
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     await signInWithProvider(provider)
+  }
+
+  const handleClearSession = () => {
+    // Clear all authentication data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mock-auth-user')
+      localStorage.removeItem('ai-brain-current-context')
+      // Clear cookies
+      document.cookie = 'mock-auth-user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'ai-brain-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      // Redirect to clean login page
+      window.location.href = '/login?refresh=true'
+    }
   }
 
   return (
@@ -54,6 +73,24 @@ export default function LoginPage() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* URL-based messages */}
+          {isLogout && (
+            <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+              {t.auth.logoutSuccess || '已成功登出 / Successfully logged out'}
+            </div>
+          )}
+          {isRefresh && (
+            <div className="p-3 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-md">
+              {t.auth.sessionExpired || '会话已过期，请重新登录 / Session expired, please login again'}
+            </div>
+          )}
+          {message && !isLogout && !isRefresh && (
+            <div className="p-3 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-md">
+              {message}
+            </div>
+          )}
+          
+          {/* Form validation messages */}
           {state?.message && (
             <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
               {state.message}
@@ -186,11 +223,20 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-4">
             <Badge variant="outline">
               <Link href="/ui-demo" className="text-xs hover:text-primary">
                 {t.dashboard.actions.viewComponents}
               </Link>
+            </Badge>
+            <Badge variant="outline">
+              <button 
+                onClick={handleClearSession}
+                className="text-xs hover:text-primary"
+                type="button"
+              >
+                🔄 Clear Session
+              </button>
             </Badge>
           </div>
         </CardContent>
