@@ -81,6 +81,84 @@ export const translations = {
       subtitle: "您的智能工作助手，集成企业工具，自动化工作流，提供 AI 驱动的协助",
       badge: "企业级 AI 助手",
       dashboardBadge: "AI Brain Dashboard",
+      workspace: "智能工作台",
+      welcome: "欢迎回来",
+      welcomeMessage: "今天是个高效的一天，让 AI Brain 帮助你完成更多任务",
+      
+      // AI 助手相关
+      aiAssistant: "AI 助手",
+      aiGreeting: "你好！我是你的 AI Brain 智能助手。我已经连接到您的企业工具，可以帮您：",
+      capabilities: {
+        taskManagement: "📋 **任务管理**：创建和跟踪 Jira 任务",
+        teamCollaboration: "💬 **团队协作**：发送 Slack 消息，查看对话",
+        codeManagement: "🔧 **代码管理**：查看 GitHub PR 状态，代码审查",
+        meetingScheduling: "📅 **会议安排**：管理日历和会议",
+        dataInsights: "📊 **数据洞察**：生成报告和分析",
+      },
+      todayFocus: "**今日重点关注**：",
+      focusItems: {
+        prPending: "有 3 个 PR 待审核",
+        projectRisk: "项目进度存在风险预警", 
+        teamOverload: "Sarah 团队负载过重需要调整",
+      },
+      howCanIHelp: "请告诉我您需要什么帮助？",
+      inputPlaceholder: "描述您需要的帮助，如：创建关于API优化的Jira任务并通知团队...",
+      aiThinking: "AI 正在思考中...",
+      
+      // 系统状态
+      systemStatus: "系统状态",
+      dataCollection: "数据收集",
+      aiAnalysis: "AI 分析", 
+      taskExecution: "任务执行",
+      running: "运行中",
+      processing: "处理中",
+      ready: "待命",
+      
+      // 状态指示器
+      syncing: "同步中",
+      pending: "待审核",
+      queued: "队列中",
+      aiMode: "AI 模式",
+      enhanced: "增强",
+      
+      // 数据源
+      dataSources: "数据源",
+      connected: "已连接",
+      error: "错误",
+      
+      // 智能洞察
+      insights: "智能洞察",
+      projectRisk: "项目进度风险",
+      projectRiskDesc: "API 开发落后 2 周，可能影响发布时间",
+      resourceOptimization: "资源优化建议",
+      resourceOptimizationDesc: "Sarah 有带宽，Tom 负载过重，建议任务重分配",
+      codeQuality: "代码质量提升",
+      codeQualityDesc: "PR 审查时间减少 40%，团队协作效率显著提升",
+      takeAction: "采取行动",
+      
+      // 执行队列
+      executionQueue: "执行队列",
+      noTasks: "暂无执行任务",
+      createJiraTask: "创建 Jira 任务",
+      execute: "执行",
+      start: "开始",
+      pause: "暂停",
+      
+      // 快捷建议
+      suggestions: {
+        todayTasks: "分析今日待办事项",
+        progressReport: "生成项目进度报告", 
+        optimizeWorkload: "优化团队工作负载",
+        urgentTask: "创建紧急任务提醒",
+        scheduleMeeting: "安排明日会议",
+        createTask: "创建任务",
+        viewSchedule: "查看日程",
+        sendMessage: "发送消息",
+        generateReport: "生成报告",
+      },
+      
+      // AI 响应示例
+      aiResponse: "我正在处理您的请求，分析相关数据...\n\n基于当前项目状态，我建议：\n1. 优先处理高优先级任务\n2. 协调团队资源分配\n3. 设置进度里程碑提醒",
       features: {
         multiTool: {
           title: "多工具集成",
@@ -272,6 +350,84 @@ export const translations = {
       subtitle: "Your intelligent work assistant that integrates enterprise tools, automates workflows, and provides AI-powered assistance",
       badge: "Enterprise AI Assistant",
       dashboardBadge: "AI Brain Dashboard",
+      workspace: "Intelligent Workspace",
+      welcome: "Welcome back",
+      welcomeMessage: "Have a productive day with AI Brain helping you accomplish more tasks",
+      
+      // AI Assistant
+      aiAssistant: "AI Assistant",
+      aiGreeting: "Hello! I am your AI Brain intelligent assistant. I'm connected to your enterprise tools and can help you with:",
+      capabilities: {
+        taskManagement: "📋 **Task Management**: Create and track Jira tasks",
+        teamCollaboration: "💬 **Team Collaboration**: Send Slack messages, view conversations",
+        codeManagement: "🔧 **Code Management**: View GitHub PR status, code reviews",
+        meetingScheduling: "📅 **Meeting Scheduling**: Manage calendar and meetings", 
+        dataInsights: "📊 **Data Insights**: Generate reports and analytics",
+      },
+      todayFocus: "**Today's Focus**:",
+      focusItems: {
+        prPending: "3 PRs pending review",
+        projectRisk: "Project progress risk alert",
+        teamOverload: "Sarah's team overload needs adjustment",
+      },
+      howCanIHelp: "How can I help you?",
+      inputPlaceholder: "Describe what you need help with, e.g.: Create a Jira task about API optimization and notify the team...",
+      aiThinking: "AI is thinking...",
+      
+      // System Status
+      systemStatus: "System Status",
+      dataCollection: "Data Collection",
+      aiAnalysis: "AI Analysis", 
+      taskExecution: "Task Execution",
+      running: "Running",
+      processing: "Processing",
+      ready: "Ready",
+      
+      // Status Indicators
+      syncing: "Syncing",
+      pending: "Pending",
+      queued: "Queued",
+      aiMode: "AI Mode",
+      enhanced: "Enhanced",
+      
+      // Data Sources
+      dataSources: "Data Sources",
+      connected: "Connected",
+      error: "Error",
+      
+      // Intelligent Insights
+      insights: "Intelligent Insights",
+      projectRisk: "Project Progress Risk",
+      projectRiskDesc: "API development is 2 weeks behind, may affect release timeline",
+      resourceOptimization: "Resource Optimization",
+      resourceOptimizationDesc: "Sarah has bandwidth while Tom is overloaded, suggest task redistribution",
+      codeQuality: "Code Quality Improvement",
+      codeQualityDesc: "PR review time reduced by 40%, team collaboration efficiency significantly improved",
+      takeAction: "Take Action",
+      
+      // Execution Queue
+      executionQueue: "Execution Queue",
+      noTasks: "No execution tasks",
+      createJiraTask: "Create Jira Task",
+      execute: "Execute",
+      start: "Start",
+      pause: "Pause",
+      
+      // Quick Suggestions
+      suggestions: {
+        todayTasks: "Analyze today's pending tasks",
+        progressReport: "Generate project progress report", 
+        optimizeWorkload: "Optimize team workload",
+        urgentTask: "Create urgent task reminder",
+        scheduleMeeting: "Schedule tomorrow's meeting",
+        createTask: "Create Task",
+        viewSchedule: "View Schedule",
+        sendMessage: "Send Message",
+        generateReport: "Generate Report",
+      },
+      
+      // AI Response Example
+      aiResponse: "I'm processing your request and analyzing relevant data...\n\nBased on current project status, I recommend:\n1. Prioritize high-priority tasks\n2. Coordinate team resource allocation\n3. Set progress milestone reminders",
       features: {
         multiTool: {
           title: "Multi-tool Integration",

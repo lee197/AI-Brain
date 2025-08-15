@@ -109,21 +109,36 @@ export default function DashboardPage() {
   // 初始化示例对话
   useEffect(() => {
     if (messages.length === 0) {
+      const aiGreeting = `${t.dashboard.aiGreeting}
+
+• ${t.dashboard.capabilities.taskManagement}
+• ${t.dashboard.capabilities.teamCollaboration}
+• ${t.dashboard.capabilities.codeManagement}
+• ${t.dashboard.capabilities.meetingScheduling}
+• ${t.dashboard.capabilities.dataInsights}
+
+${t.dashboard.todayFocus}
+- ${t.dashboard.focusItems.prPending}
+- ${t.dashboard.focusItems.projectRisk}
+- ${t.dashboard.focusItems.teamOverload}
+
+${t.dashboard.howCanIHelp}`
+      
       const initialMessage: Message = {
         id: '1',
         role: 'assistant',
-        content: '你好！我是你的 AI Brain 智能助手。我已经连接到您的企业工具，可以帮您：\n\n• 📋 **任务管理**：创建和跟踪 Jira 任务\n• 💬 **团队协作**：发送 Slack 消息，查看对话\n• 🔧 **代码管理**：查看 GitHub PR 状态，代码审查\n• 📅 **会议安排**：管理日历和会议\n• 📊 **数据洞察**：生成报告和分析\n\n**今日重点关注**：\n- 有 3 个 PR 待审核\n- 项目进度存在风险预警\n- Sarah 团队负载过重需要调整\n\n请告诉我您需要什么帮助？',
+        content: aiGreeting,
         timestamp: new Date(),
         suggestions: [
-          '查看今日待办任务',
-          '分析项目进度风险',
-          '优化团队资源分配',
-          '生成周报总结'
+          t.dashboard.suggestions.todayTasks,
+          t.dashboard.suggestions.progressReport,
+          t.dashboard.suggestions.optimizeWorkload,
+          t.dashboard.suggestions.scheduleMeeting
         ]
       }
       setMessages([initialMessage])
     }
-  }, [])
+  }, [t])
 
   // 定义处理函数
   const handleSendMessage = () => {
@@ -145,13 +160,13 @@ export default function DashboardPage() {
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: '我正在处理您的请求，分析相关数据...\n\n基于当前项目状态，我建议：\n1. 优先处理高优先级任务\n2. 协调团队资源分配\n3. 设置进度里程碑提醒',
+        content: t.dashboard.aiResponse,
         timestamp: new Date(),
         actions: [
           {
             id: 'action1',
             type: 'create_task',
-            title: '创建 Jira 任务',
+            title: t.dashboard.createJiraTask,
             status: 'pending'
           }
         ]
@@ -220,8 +235,8 @@ export default function DashboardPage() {
     {
       id: '1',
       type: 'warning',
-      title: '项目进度风险 / Project Risk',
-      description: 'API 开发落后 2 周，可能影响发布时间',
+      title: t.dashboard.projectRisk,
+      description: t.dashboard.projectRiskDesc,
       priority: 'high',
       actionable: true,
       icon: AlertTriangle
@@ -229,8 +244,8 @@ export default function DashboardPage() {
     {
       id: '2',
       type: 'opportunity',
-      title: '资源优化建议 / Resource Optimization',
-      description: 'Sarah 有带宽，Tom 负载过重，建议任务重分配',
+      title: t.dashboard.resourceOptimization,
+      description: t.dashboard.resourceOptimizationDesc,
       priority: 'medium',
       actionable: true,
       icon: Target
@@ -238,8 +253,8 @@ export default function DashboardPage() {
     {
       id: '3',
       type: 'trend',
-      title: '代码质量提升 / Code Quality',
-      description: 'PR 审查时间减少 40%，团队协作效率显著提升',
+      title: t.dashboard.codeQuality,
+      description: t.dashboard.codeQualityDesc,
       priority: 'low',
       actionable: false,
       icon: TrendingUp
@@ -258,7 +273,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <h1 className="font-bold text-lg">AI Brain</h1>
-              <p className="text-xs text-muted-foreground">智能工作台 / Intelligent Workspace</p>
+              <p className="text-xs text-muted-foreground">{t.dashboard.workspace}</p>
             </div>
           </div>
         </div>
@@ -267,37 +282,37 @@ export default function DashboardPage() {
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Monitor className="w-4 h-4" />
-            系统状态 / System Status
+            {t.dashboard.systemStatus}
           </h3>
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-2">
                 <Inbox className="w-3 h-3" />
-                数据收集 / Collection
+                {t.dashboard.dataCollection}
               </span>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-600">运行中</span>
+                <span className="text-green-600">{t.dashboard.running}</span>
               </div>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-2">
                 <Brain className="w-3 h-3" />
-                AI 分析 / Analysis
+                {t.dashboard.aiAnalysis}
               </span>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-blue-600">处理中</span>
+                <span className="text-blue-600">{t.dashboard.processing}</span>
               </div>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-2">
                 <Zap className="w-3 h-3" />
-                任务执行 / Execution
+                {t.dashboard.taskExecution}
               </span>
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-orange-600">待命</span>
+                <span className="text-orange-600">{t.dashboard.ready}</span>
               </div>
             </div>
           </div>
@@ -307,7 +322,7 @@ export default function DashboardPage() {
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Database className="w-4 h-4" />
-            数据源 / Data Sources
+            {t.dashboard.dataSources}
           </h3>
           <ScrollArea className="h-32">
             <div className="space-y-2">
@@ -333,7 +348,7 @@ export default function DashboardPage() {
         <div className="flex-1 p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
-            智能洞察 / Insights
+            {t.dashboard.insights}
           </h3>
           <ScrollArea className="h-full">
             <div className="space-y-3">
@@ -345,11 +360,19 @@ export default function DashboardPage() {
                       insight.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
                     }`} />
                     <div className="flex-1">
-                      <p className="font-medium mb-1">{insight.title}</p>
-                      <p className="text-muted-foreground">{insight.description}</p>
+                      <p className="font-medium mb-1">
+                        {insight.id === '1' ? t.dashboard.projectRisk :
+                         insight.id === '2' ? t.dashboard.resourceOptimization :
+                         t.dashboard.codeQuality}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {insight.id === '1' ? t.dashboard.projectRiskDesc :
+                         insight.id === '2' ? t.dashboard.resourceOptimizationDesc :
+                         t.dashboard.codeQualityDesc}
+                      </p>
                       {insight.actionable && (
                         <Button size="sm" variant="outline" className="mt-2 h-6 px-2 text-xs">
-                          采取行动
+                          {t.dashboard.takeAction}
                         </Button>
                       )}
                     </div>
@@ -369,22 +392,22 @@ export default function DashboardPage() {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-muted-foreground">同步中 3/4</span>
+                <span className="text-muted-foreground">{t.dashboard.syncing} 3/4</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <CheckSquare className="w-4 h-4 text-blue-500" />
-                <span className="text-muted-foreground">待审核 5</span>
+                <span className="text-muted-foreground">{t.dashboard.pending} 5</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="w-4 h-4 text-orange-500" />
-                <span className="text-muted-foreground">队列中 2</span>
+                <span className="text-muted-foreground">{t.dashboard.queued} 2</span>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               <Badge variant="outline" className="text-xs">
                 <Cpu className="w-3 h-3 mr-1" />
-                AI 模式: 增强
+                {t.dashboard.aiMode}: {t.dashboard.enhanced}
               </Badge>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="w-4 h-4" />
@@ -505,7 +528,7 @@ export default function DashboardPage() {
                     <div className="bg-card border rounded-2xl p-4">
                       <div className="flex items-center gap-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">AI 正在思考中...</span>
+                        <span className="text-sm text-muted-foreground">{t.dashboard.aiThinking}</span>
                       </div>
                     </div>
                   </div>
@@ -527,7 +550,7 @@ export default function DashboardPage() {
                         handleSendMessage()
                       }
                     }}
-                    placeholder="描述您需要的帮助，如：创建关于API优化的Jira任务并通知团队..."
+                    placeholder={t.dashboard.inputPlaceholder}
                     className="text-base py-4 px-4 rounded-2xl"
                     disabled={isProcessing}
                   />
@@ -554,11 +577,11 @@ export default function DashboardPage() {
               {/* 快捷建议 */}
               <div className="flex flex-wrap gap-2 mt-4">
                 {[
-                  '分析今日待办事项',
-                  '生成项目进度报告',
-                  '优化团队工作负载',
-                  '创建紧急任务提醒',
-                  '安排明日会议'
+                  t.dashboard.suggestions.todayTasks,
+                  t.dashboard.suggestions.progressReport,
+                  t.dashboard.suggestions.optimizeWorkload,
+                  t.dashboard.suggestions.urgentTask,
+                  t.dashboard.suggestions.scheduleMeeting
                 ].map((suggestion, index) => (
                   <Badge 
                     key={index}
@@ -580,7 +603,7 @@ export default function DashboardPage() {
         <div className="p-4 border-b">
           <h3 className="font-semibold text-sm flex items-center gap-2">
             <Zap className="w-4 h-4" />
-            执行队列 / Execution Queue
+            {t.dashboard.executionQueue}
           </h3>
         </div>
         
@@ -589,7 +612,7 @@ export default function DashboardPage() {
             {activeActions.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">暂无执行任务</p>
+                <p className="text-sm">{t.dashboard.noTasks}</p>
               </div>
             ) : (
               activeActions.map((action) => (
@@ -608,13 +631,13 @@ export default function DashboardPage() {
                     {action.status === 'pending' && (
                       <Button size="sm" variant="outline" className="h-6 text-xs">
                         <Play className="w-3 h-3 mr-1" />
-                        开始
+                        {t.dashboard.start}
                       </Button>
                     )}
                     {action.status === 'executing' && (
                       <Button size="sm" variant="outline" className="h-6 text-xs">
                         <Pause className="w-3 h-3 mr-1" />
-                        暂停
+                        {t.dashboard.pause}
                       </Button>
                     )}
                     <Button size="sm" variant="ghost" className="h-6 text-xs">
