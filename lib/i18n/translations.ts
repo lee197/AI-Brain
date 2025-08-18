@@ -23,6 +23,7 @@ export const translations = {
       change: "更改",
       create: "创建",
       creating: "创建中...",
+      loading: "加载中",
     },
     // 认证相关
     auth: {

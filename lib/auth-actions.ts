@@ -92,8 +92,13 @@ export async function login(prevState: { message?: string; errors?: any } | null
     }
 
     revalidatePath('/', 'layout')
-    redirect('/')
+    redirect('/contexts')
   } catch (error) {
+    // 如果是重定向错误，不要捕获它
+    if (error && typeof error === 'object' && 'digest' in error && 
+        typeof error.digest === 'string' && error.digest.includes('NEXT_REDIRECT')) {
+      throw error
+    }
     return {
       message: '登录服务暂时不可用，请使用演示账号 / Login service unavailable, please use demo account',
     }
@@ -150,29 +155,39 @@ export async function signup(prevState: { message?: string; errors?: any } | nul
   // 使用真实 Supabase 认证
   try {
     const supabase = await createClient()
-    const { error } = await supabase.auth.signUp({
+    
+    // 注册新用户
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           full_name: name,
         },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/callback`,
       },
     })
 
-    if (error) {
+    if (signUpError) {
       return {
-        message: '注册失败 / Signup failed: ' + error.message,
+        message: '注册失败 / Signup failed: ' + signUpError.message,
       }
     }
-
-    revalidatePath('/', 'layout')
-    redirect('/login?message=请检查邮箱并点击确认链接完成注册 / Please check your email to confirm')
   } catch (error) {
+    console.error('Signup error:', error)
+    // 如果是重定向错误，不要捕获它
+    if (error && typeof error === 'object' && 'digest' in error && 
+        typeof error.digest === 'string' && error.digest.includes('NEXT_REDIRECT')) {
+      throw error
+    }
     return {
       message: '注册服务暂时不可用 / Signup service unavailable',
     }
   }
+
+  // 注册成功，需要邮箱确认
+  revalidatePath('/', 'layout')
+  redirect('/login?message=' + encodeURIComponent('注册成功！请检查邮箱并点击确认链接完成验证 / Registration successful! Please check your email and click the confirmation link'))
 }
 
 export async function signOut() {

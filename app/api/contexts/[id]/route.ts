@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
 import { Context, UpdateContextRequest, CONTEXT_PERMISSIONS } from '@/types/context'
-import { getContextById, updateContextById, removeContextById } from '@/lib/mock-storage'
 
 // 验证schema
 const updateContextSchema = z.object({
@@ -21,62 +21,127 @@ const updateContextSchema = z.object({
   metadata: z.record(z.any()).optional(),
 })
 
-
-// 获取当前用户ID（Mock实现）
-function getCurrentUserId(request: NextRequest): string {
-  const authCookie = request.cookies.get('ai-brain-auth')?.value
-  
-  if (authCookie) {
-    try {
-      const authData = JSON.parse(authCookie)
-      if (authData.email === 'admin@aibrain.com') {
-        return 'user_admin'
-      } else if (authData.email === 'demo@aibrain.com') {
-        return 'user_demo'
-      }
-    } catch (e) {
-      if (authCookie === 'admin@aibrain.com') {
-        return 'user_admin'
-      } else if (authCookie === 'demo@aibrain.com') {
-        return 'user_demo'
+// 获取当前用户ID（与主route.ts保持一致）
+async function getCurrentUserId(request: NextRequest): Promise<string> {
+  if (process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true') {
+    const authCookie = request.cookies.get('ai-brain-auth')?.value
+    if (authCookie) {
+      try {
+        const authData = JSON.parse(authCookie)
+        if (authData.email === 'admin@aibrain.com') {
+          return '11111111-1111-1111-1111-111111111111'
+        } else if (authData.email === 'demo@aibrain.com') {
+          return '22222222-2222-2222-2222-222222222222'
+        }
+      } catch (e) {
+        if (authCookie === 'admin@aibrain.com') {
+          return '11111111-1111-1111-1111-111111111111'
+        } else if (authCookie === 'demo@aibrain.com') {
+          return '22222222-2222-2222-2222-222222222222'
+        }
       }
     }
-  }
-  
-  if (process.env.NODE_ENV === 'development') {
-    return 'user_admin'
+    if (process.env.NODE_ENV === 'development') {
+      return '11111111-1111-1111-1111-111111111111'
+    }
+  } else {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Unauthorized')
+    return user.id
   }
   
   throw new Error('Unauthorized')
 }
 
 // 检查用户是否有特定权限
-function hasPermission(context: Context, userId: string, permission: string): boolean {
-  const member = context.members.find(m => m.userId === userId)
-  return member ? member.permissions.includes(permission) : false
-}
+async function hasPermission(
+  supabase: any,
+  contextId: string,
+  userId: string,
+  permission: string
+): Promise<boolean> {
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('permissions')
+    .eq('context_id', contextId)
+    .eq('user_id', userId)
+    .single()
 
+  if (!member) return false
+  
+  const permissions = member.permissions || []
+  return permissions.includes(permission)
+}
 
 // GET /api/contexts/[id] - 获取特定Context详情
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = getCurrentUserId(request)
-    const contextId = params.id
+    const userId = await getCurrentUserId(request)
+    const resolvedParams = await params
+    const contextId = resolvedParams.id
+    const supabase = await createClient()
 
-    const context = getContextById(contextId)
-    if (!context) {
+    // 获取Context详情
+    const { data: context, error } = await supabase
+      .from('contexts')
+      .select(`
+        *,
+        team_members(
+          user_id,
+          role,
+          permissions,
+          joined_at
+        ),
+        data_sources(
+          id,
+          type,
+          name,
+          config,
+          status,
+          created_at
+        )
+      `)
+      .eq('id', contextId)
+      .single()
+
+    if (error || !context) {
       return NextResponse.json({ error: 'Context not found' }, { status: 404 })
     }
 
     // 检查读取权限
-    if (!hasPermission(context, userId, CONTEXT_PERMISSIONS.READ)) {
+    const canRead = await hasPermission(supabase, contextId, userId, CONTEXT_PERMISSIONS.READ)
+    if (!canRead) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    return NextResponse.json({ context })
+    // 格式化返回数据
+    const formattedContext: Context = {
+      id: context.id,
+      type: context.type,
+      name: context.name,
+      description: context.description,
+      ownerId: context.owner_id,
+      members: context.team_members?.map((member: any) => ({
+        userId: member.user_id,
+        contextId: context.id,
+        role: member.role,
+        permissions: member.permissions,
+        joinedAt: member.joined_at
+      })) || [],
+      lifecycle: context.settings?.lifecycle || 'PERMANENT',
+      createdAt: context.created_at,
+      settings: {
+        ...context.settings,
+        dataSources: context.data_sources || []
+      },
+      metadata: context.settings?.metadata || {}
+    }
+
+    return NextResponse.json({ context: formattedContext })
 
   } catch (error) {
     console.error('GET /api/contexts/[id] error:', error)
@@ -90,55 +155,51 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = getCurrentUserId(request)
+    const userId = await getCurrentUserId(request)
     const contextId = params.id
     const body = await request.json()
     const validated = updateContextSchema.parse(body)
-
-    const context = getContextById(contextId)
-    if (!context) {
-      return NextResponse.json({ error: 'Context not found' }, { status: 404 })
-    }
+    const supabase = await createClient()
 
     // 检查写入权限
-    if (!hasPermission(context, userId, CONTEXT_PERMISSIONS.WRITE)) {
+    const canWrite = await hasPermission(supabase, contextId, userId, CONTEXT_PERMISSIONS.WRITE)
+    if (!canWrite) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // 准备更新数据
-    const updates: Partial<Context> = {}
+    const updateData: any = {}
+    if (validated.name) updateData.name = validated.name
+    if (validated.description !== undefined) updateData.description = validated.description
     
-    if (validated.name !== undefined) {
-      updates.name = validated.name
-    }
-    
-    if (validated.description !== undefined) {
-      updates.description = validated.description
-    }
+    if (validated.settings || validated.metadata) {
+      // 获取当前settings
+      const { data: current } = await supabase
+        .from('contexts')
+        .select('settings')
+        .eq('id', contextId)
+        .single()
 
-    if (validated.settings) {
-      // 检查管理设置权限
-      if (!hasPermission(context, userId, CONTEXT_PERMISSIONS.MANAGE_SETTINGS)) {
-        return NextResponse.json({ error: 'Insufficient permissions for settings' }, { status: 403 })
-      }
-      
-      updates.settings = {
-        ...context.settings,
-        ...validated.settings,
-        notifications: validated.settings.notifications 
-          ? { ...context.settings.notifications, ...validated.settings.notifications }
-          : context.settings.notifications
+      updateData.settings = {
+        ...(current?.settings || {}),
+        ...(validated.settings || {}),
+        metadata: validated.metadata || current?.settings?.metadata || {}
       }
     }
 
-    if (validated.metadata) {
-      updates.metadata = { ...context.metadata, ...validated.metadata }
-    }
+    updateData.updated_at = new Date().toISOString()
 
     // 更新Context
-    const updatedContext = updateContextById(contextId, updates)
-    if (!updatedContext) {
-      return NextResponse.json({ error: 'Failed to update context' }, { status: 500 })
+    const { data: updatedContext, error } = await supabase
+      .from('contexts')
+      .update(updateData)
+      .eq('id', contextId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Context update error:', error)
+      throw error
     }
 
     return NextResponse.json({ context: updatedContext })
@@ -152,83 +213,36 @@ export async function PUT(
   }
 }
 
-// Deletion confirmation schema
-const deleteSchema = z.object({
-  confirmText: z.string(),
-  permanent: z.boolean().optional().default(false),
-})
-
-// DELETE /api/contexts/[id] - 删除Context（支持软删除和硬删除）
+// DELETE /api/contexts/[id] - 删除Context
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = getCurrentUserId(request)
+    const userId = await getCurrentUserId(request)
     const contextId = params.id
-    const body = await request.json()
-    const { confirmText, permanent } = deleteSchema.parse(body)
+    const supabase = await createClient()
 
-    const context = getContextById(contextId)
-    if (!context) {
-      return NextResponse.json({ error: 'Context not found' }, { status: 404 })
-    }
-
-    // 检查删除权限（只有Owner可以删除Context）
-    if (!hasPermission(context, userId, CONTEXT_PERMISSIONS.DELETE)) {
+    // 检查删除权限
+    const canDelete = await hasPermission(supabase, contextId, userId, CONTEXT_PERMISSIONS.DELETE)
+    if (!canDelete) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // 如果是永久删除，验证确认文本
-    if (permanent) {
-      if (confirmText !== '永久删除' && confirmText !== 'DELETE FOREVER') {
-        return NextResponse.json(
-          { error: 'Invalid confirmation text for permanent deletion' },
-          { status: 400 }
-        )
-      }
+    // 删除Context（级联删除会自动删除相关的team_members和data_sources）
+    const { error } = await supabase
+      .from('contexts')
+      .delete()
+      .eq('id', contextId)
 
-      // 模拟永久删除操作
-      console.log(`Permanently deleting context: ${contextId}`)
-      console.log('- Removing AI training data and conversation history')
-      console.log('- Clearing vector database content and knowledge graphs')
-      console.log('- Disconnecting data source integrations:', context.dataSources)
-      console.log('- Deleting uploaded documents and generated reports')
-      console.log('- Removing member access permissions for', context.members.length, 'members')
-
-      // 模拟处理时间
-      await new Promise(resolve => setTimeout(resolve, 800))
-
-      // 执行永久删除
-      const success = removeContextById(contextId)
-      if (!success) {
-        return NextResponse.json({ error: 'Failed to permanently delete context' }, { status: 500 })
-      }
-
-      return NextResponse.json({ 
-        message: 'Context permanently deleted',
-        permanent: true
-      })
-    } else {
-      // 软删除（归档）
-      const success = removeContextById(contextId)
-      if (!success) {
-        return NextResponse.json({ error: 'Failed to archive context' }, { status: 500 })
-      }
-
-      return NextResponse.json({ 
-        message: 'Context archived successfully',
-        permanent: false
-      })
+    if (error) {
+      console.error('Context deletion error:', error)
+      throw error
     }
+
+    return NextResponse.json({ success: true })
 
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
     console.error('DELETE /api/contexts/[id] error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

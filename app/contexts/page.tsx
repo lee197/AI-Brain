@@ -55,6 +55,20 @@ export default function ContextsPage() {
   const [selectedContextType, setSelectedContextType] = useState<ContextType | 'ALL'>('ALL')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [contextToDelete, setContextToDelete] = useState<Context | null>(null)
+  const [showVerificationSuccess, setShowVerificationSuccess] = useState(false)
+
+  // 检查邮箱验证成功状态
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    if (searchParams.get('verified') === 'true') {
+      setShowVerificationSuccess(true)
+      // 清理URL参数
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      // 3秒后自动隐藏提示
+      setTimeout(() => setShowVerificationSuccess(false), 5000)
+    }
+  }, [])
 
   // 检查认证状态
   useEffect(() => {
@@ -85,15 +99,6 @@ export default function ContextsPage() {
     }
   }
 
-  // 处理Context选择
-  const handleContextSelect = (context: Context) => {
-    // 保存选中的Context到localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ai-brain-current-context', context.id)
-    }
-    // 跳转到Dashboard
-    router.push('/dashboard')
-  }
 
   // 处理删除Context
   const handleDeleteContext = (context: Context) => {
@@ -131,6 +136,10 @@ export default function ContextsPage() {
     }
   }
 
+  // 选择Context并跳转到其Dashboard
+  const handleContextSelect = (context: Context) => {
+    router.push(`/contexts/${context.id}`)
+  }
 
   // 过滤和分组Context
   const filteredContexts = contexts.filter(ctx => {
@@ -230,6 +239,24 @@ export default function ContextsPage() {
         </div>
       </header>
 
+      {/* 邮箱验证成功提示 */}
+      {showVerificationSuccess && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-6 mt-4 rounded">
+          <div className="flex items-center">
+            <CheckCircle2 className="w-5 h-5 text-green-400 mr-3" />
+            <div>
+              <p className="text-green-800 font-medium">
+                邮箱验证成功！/ Email verified successfully!
+              </p>
+              <p className="text-green-700 text-sm">
+                欢迎使用AI Brain，现在可以开始创建您的工作空间了。
+                Welcome to AI Brain, you can now start creating your workspaces.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 主要内容 */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 欢迎区域 */}
@@ -309,7 +336,9 @@ export default function ContextsPage() {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="text-2xl">{getContextIcon(type as ContextType)}</div>
                   <h3 className="text-lg font-semibold">
-                    {getContextTypeInfo(type as ContextType, language).title}
+                    {['PROJECT', 'DEPARTMENT', 'TEAM', 'CLIENT', 'PERSONAL'].includes(type as ContextType) 
+                      ? getContextTypeInfo(type as ContextType, language).title 
+                      : type}
                   </h3>
                   <Badge variant="outline" className="text-xs">
                     {typeContexts.length}
@@ -320,15 +349,15 @@ export default function ContextsPage() {
                   {typeContexts.map((context) => (
                     <Card 
                       key={context.id} 
-                      className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-0 shadow-md relative"
+                      className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-0 shadow-md relative cursor-pointer"
+                      onClick={() => handleContextSelect(context)}
                     >
                       <CardHeader className="pb-3">
                         <div className={`w-full h-2 rounded-full bg-gradient-to-r ${getContextColor(context.type)} mb-3`} />
                         
                         <div className="flex items-start justify-between">
                           <div 
-                            className="flex items-center gap-3 flex-1 cursor-pointer"
-                            onClick={() => handleContextSelect(context)}
+                            className="flex items-center gap-3 flex-1"
                           >
                             <Avatar className="h-12 w-12">
                               <AvatarFallback className={`text-white bg-gradient-to-r ${getContextColor(context.type)}`}>
@@ -343,15 +372,16 @@ export default function ContextsPage() {
                                 variant="secondary" 
                                 className="text-xs mt-1"
                               >
-                                {getContextTypeInfo(context.type, language).title}
+                                {['PROJECT', 'DEPARTMENT', 'TEAM', 'CLIENT', 'PERSONAL'].includes(context.type) 
+                                  ? getContextTypeInfo(context.type, language).title 
+                                  : context.type}
                               </Badge>
                             </div>
                           </div>
                           
                           <div className="flex items-center gap-2">
                             <ArrowRight 
-                              className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all cursor-pointer"
-                              onClick={() => handleContextSelect(context)}
+                              className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all"
                             />
                             
                             <DropdownMenu>

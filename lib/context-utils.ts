@@ -1,35 +1,34 @@
-import { ContextType, LifecycleType } from '@/types/context'
+import { ContextType, LifecycleType, CONTEXT_TYPE_INFO } from '@/types/context'
 import { translations, Language } from '@/lib/i18n/translations'
 
 // 动态获取Context类型信息
 export function getContextTypeInfo(type: ContextType, language: Language) {
   const t = translations[language]
   
-  const baseInfo = {
-    icon: {
-      PROJECT: '🚀',
-      DEPARTMENT: '🏢',
-      TEAM: '👥',
-      CLIENT: '🤝',
-      PERSONAL: '📝'
-    }[type],
-    defaultLifecycle: {
-      PROJECT: 'TEMPORARY',
-      DEPARTMENT: 'PERMANENT', 
-      TEAM: 'TEMPORARY',
-      CLIENT: 'PERMANENT',
-      PERSONAL: 'PERMANENT'
-    }[type] as LifecycleType,
-    suggestedDuration: {
-      PROJECT: language === 'zh' ? '3-6个月' : '3-6 months',
-      TEAM: language === 'zh' ? '2-4周' : '2-4 weeks'
-    }[type]
+  const baseInfo = CONTEXT_TYPE_INFO[type]
+  
+  // 防御性编程：确保baseInfo存在
+  if (!baseInfo) {
+    return {
+      icon: '📁',
+      title: type,
+      description: `${type} workspace`,
+      defaultLifecycle: 'PERMANENT' as LifecycleType,
+      suggestedDuration: undefined,
+      label: type
+    }
   }
-
+  
+  // 如果翻译文件中有对应的翻译，优先使用翻译
+  const translatedInfo = t.dashboard?.contextTypes?.[type]
+  
   return {
-    ...baseInfo,
-    title: t.dashboard.contextTypes[type].title,
-    description: t.dashboard.contextTypes[type].description
+    icon: baseInfo.icon,
+    title: translatedInfo?.title || baseInfo.title,
+    description: translatedInfo?.description || baseInfo.description,
+    defaultLifecycle: baseInfo.defaultLifecycle,
+    suggestedDuration: baseInfo.suggestedDuration,
+    label: translatedInfo?.title || baseInfo.title
   }
 }
 
