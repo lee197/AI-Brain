@@ -72,71 +72,67 @@ Notion: "@notionhq/client"
 ai-brain/
 ├── app/
 │   ├── (auth)/
-│   │   ├── login/page.tsx
-│   │   ├── signup/page.tsx
-│   │   └── layout.tsx
+│   │   ├── login/page.tsx       # 登录页面
+│   │   ├── signup/page.tsx      # 注册页面
+│   │   └── layout.tsx           # 认证布局
 │   ├── (dashboard)/
-│   │   ├── layout.tsx           # Main app layout with sidebar
-│   │   ├── page.tsx             # Dashboard home
-│   │   ├── chat/page.tsx        # AI chat interface
-│   │   ├── integrations/
-│   │   │   ├── page.tsx         # Integration list
-│   │   │   └── [tool]/page.tsx  # Tool-specific settings
-│   │   ├── insights/page.tsx    # Analytics & insights
-│   │   ├── tasks/page.tsx       # Task management
-│   │   └── settings/page.tsx    # User settings
+│   │   └── page.tsx             # 对话式Dashboard (简化版)
+│   ├── contexts/
+│   │   ├── page.tsx             # Context选择/管理页面
+│   │   └── new/page.tsx         # Context创建页面
+│   ├── dashboard/page.tsx       # 主Dashboard工作空间
 │   ├── api/
 │   │   ├── auth/
 │   │   │   └── callback/route.ts
 │   │   ├── ai/
-│   │   │   ├── chat/route.ts
-│   │   │   ├── analyze/route.ts
-│   │   │   └── actions/route.ts
-│   │   ├── integrations/
-│   │   │   ├── slack/
-│   │   │   │   ├── route.ts
-│   │   │   │   └── webhook/route.ts
-│   │   │   ├── jira/
-│   │   │   ├── github/
-│   │   │   └── google/
-│   │   └── webhooks/
-│   └── layout.tsx               # Root layout
+│   │   │   ├── chat/route.ts    # AI聊天API (智能路由)
+│   │   │   └── analyze/route.ts # 数据分析API
+│   │   └── contexts/
+│   │       ├── route.ts         # Context CRUD
+│   │       └── [id]/
+│   │           ├── route.ts     # 单个Context操作
+│   │           └── members/route.ts # 成员管理
+│   ├── page.tsx                 # 公共首页
+│   └── layout.tsx               # 根布局
 ├── components/
-│   ├── ui/                      # shadcn/ui components
-│   ├── chat/
-│   │   ├── chat-interface.tsx
-│   │   ├── message-list.tsx
-│   │   └── message-input.tsx
-│   ├── integrations/
-│   │   ├── integration-card.tsx
-│   │   └── integration-setup.tsx
-│   └── layout/
-│       ├── sidebar.tsx
-│       └── header.tsx
+│   ├── ui/                      # shadcn/ui组件
+│   │   ├── markdown.tsx         # ✨ Markdown渲染组件
+│   │   ├── alert-dialog.tsx     # 确认对话框
+│   │   ├── tabs.tsx             # 标签页组件
+│   │   └── separator.tsx        # 分割线
+│   ├── create-context-dialog.tsx # Context创建对话框
+│   ├── delete-context-dialog.tsx # Context删除确认
+│   ├── data-source-selector.tsx  # 数据源选择器
+│   └── data-source-config-modal.tsx # 数据源配置
 ├── lib/
 │   ├── supabase/
-│   │   ├── client.ts
-│   │   ├── server.ts
-│   │   └── middleware.ts
+│   │   ├── client.ts            # 浏览器端客户端
+│   │   └── server.ts            # 服务端客户端
 │   ├── ai/
-│   │   ├── client.ts
-│   │   ├── prompts.ts
-│   │   └── tools.ts
-│   ├── integrations/
-│   │   ├── slack.ts
-│   │   ├── jira.ts
-│   │   └── github.ts
-│   └── utils.ts
+│   │   └── data-analyzer.ts     # ✨ 智能数据分析引擎
+│   ├── mock-auth.ts             # ✨ 模拟认证系统
+│   ├── auth-actions.ts          # 认证操作
+│   ├── context-utils.ts         # Context工具函数
+│   ├── mock-storage.ts          # 本地存储模拟
+│   ├── i18n/
+│   │   └── translations.ts      # ✨ 国际化翻译系统
+│   └── utils.ts                 # 通用工具函数
 ├── types/
-│   ├── database.ts              # Supabase types
-│   ├── integrations.ts
-│   └── ai.ts
-├── hooks/
-│   ├── use-chat.ts
-│   ├── use-integrations.ts
-│   └── use-supabase.ts
-└── middleware.ts                # Auth middleware
+│   ├── database.ts              # Supabase数据库类型
+│   └── context.ts               # Context类型定义
+├── docs/
+│   └── ai-architecture.md       # ✨ AI系统架构文档
+└── middleware.ts                # 路由中间件
 ```
+
+### 🆕 新增核心文件说明
+
+- **✨ 标记的文件** 为新实现的核心功能
+- **模拟认证系统** (`lib/mock-auth.ts`) - 开发环境快速测试
+- **AI数据分析引擎** (`lib/ai/data-analyzer.ts`) - 自主智能分析
+- **国际化系统** (`lib/i18n/translations.ts`) - 中英文双语支持
+- **Context管理** (`app/contexts/`) - 工作空间管理系统
+- **Markdown渲染** (`components/ui/markdown.tsx`) - AI消息格式化
 
 ## 🎨 UI/UX Guidelines
 
@@ -652,6 +648,238 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
+## 🔧 Supabase设置指南
+
+### 1. 创建Supabase项目
+```bash
+# 1. 访问 https://supabase.com 创建新项目
+# 2. 记录项目URL和API密钥
+# 3. 在 SQL编辑器 中执行以下步骤
+```
+
+### 2. 启用必要扩展
+```sql
+-- 启用向量存储扩展 (用于RAG)
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- 启用UUID生成
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+
+### 3. 创建数据库表
+```bash
+# 在Supabase SQL编辑器中执行 CLAUDE.md 中的完整Schema
+# 包含所有表: organizations, contexts, messages, 等
+```
+
+### 4. 配置环境变量
+```env
+# 复制到 .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+### 5. 生成TypeScript类型
+```bash
+npx supabase gen types typescript --project-id YOUR_PROJECT_ID > types/database.ts
+```
+
+## 🎭 模拟认证系统
+
+### 开发环境快速测试
+```env
+# 启用模拟认证 (跳过Supabase Auth)
+NEXT_PUBLIC_USE_MOCK_AUTH=true
+```
+
+### 测试账户
+```typescript
+// 内置测试账户 (lib/mock-auth.ts)
+{
+  email: "admin@aibrain.com",
+  password: "admin123",
+  name: "系统管理员"
+},
+{
+  email: "demo@aibrain.com", 
+  password: "demo123",
+  name: "演示用户"
+}
+```
+
+### 切换到生产认证
+```env
+# 禁用模拟认证，使用真实Supabase
+NEXT_PUBLIC_USE_MOCK_AUTH=false
+```
+
+## 🌐 Context工作空间系统
+
+### Context类型
+```typescript
+type ContextType = 
+  | 'PROJECT'    // 项目工作空间
+  | 'TEAM'       // 团队工作空间  
+  | 'DEPARTMENT' // 部门工作空间
+  | 'CLIENT'     // 客户工作空间
+  | 'PERSONAL'   // 个人工作空间
+```
+
+### 权限级别
+```typescript
+type Role = 
+  | 'owner'   // 拥有者 - 完全控制
+  | 'admin'   // 管理员 - 管理成员和设置
+  | 'member'  // 成员 - 正常使用功能
+  | 'viewer'  // 查看者 - 只读权限
+```
+
+### 数据源集成
+- Slack - 团队沟通数据
+- Jira - 项目管理数据
+- GitHub - 代码仓库数据
+- Google Workspace - 文档和日历
+- Notion - 知识库文档
+
+## 🌍 国际化系统
+
+### 支持语言
+- 🇨🇳 中文 (默认)
+- 🇺🇸 English
+
+### 添加新翻译
+```typescript
+// lib/i18n/translations.ts
+export const translations = {
+  zh: {
+    newKey: "中文翻译"
+  },
+  en: {
+    newKey: "English Translation"  
+  }
+}
+```
+
+### 组件中使用
+```tsx
+import { useLanguage } from '@/lib/i18n/translations'
+
+function Component() {
+  const { t } = useLanguage()
+  return <div>{t.newKey}</div>
+}
+```
+
+## 🤖 AI智能系统架构
+
+### 三层智能架构
+```
+Layer 3: 外部AI APIs (OpenAI/Anthropic)
+    ↓ (如果有API Key)
+Layer 2: 智能响应生成 (generateSmartResponse)  
+    ↓ (降级机制)
+Layer 1: 基础关键词匹配 (默认响应)
+```
+
+### 智能路由
+```typescript
+// 关键词 → 功能路由
+"数据源" → 数据源健康分析
+"任务"   → 任务管理洞察  
+"团队"   → 团队表现分析
+"工作"   → 项目状态评估
+```
+
+### 数据分析引擎
+```typescript
+// lib/ai/data-analyzer.ts
+class DataAnalyzer {
+  analyzeTeamPerformance()     // 团队表现
+  analyzeProjectStatus()       // 项目状态
+  analyzeDataSourceHealth()    // 数据源健康
+  analyzeTaskManagement()      // 任务分析
+  analyzeMeetingSchedule()     // 会议优化
+}
+```
+
+## 📋 部署检查清单
+
+### 环境变量配置
+- [ ] `NEXT_PUBLIC_SUPABASE_URL` 已设置
+- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` 已设置  
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` 已设置
+- [ ] `OPENAI_API_KEY` 已设置 (可选)
+- [ ] `ANTHROPIC_API_KEY` 已设置 (可选)
+- [ ] `NEXT_PUBLIC_USE_MOCK_AUTH=false` (生产环境)
+
+### 数据库配置
+- [ ] 所有表已创建
+- [ ] pgvector扩展已启用
+- [ ] RLS策略已配置
+- [ ] 索引已创建
+
+### 安全检查
+- [ ] API路由有认证保护
+- [ ] 敏感数据已加密存储
+- [ ] CORS策略已配置
+- [ ] 错误信息不泄露敏感信息
+
+### 性能优化
+- [ ] 图片已优化
+- [ ] 数据库查询已优化
+- [ ] 客户端组件最小化
+- [ ] 缓存策略已实施
+
+## 🔧 开发工作流
+
+### 启动开发环境
+```bash
+# 1. 克隆项目
+git clone https://github.com/lee197/AI-Brain.git
+
+# 2. 安装依赖
+npm install
+
+# 3. 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 填入真实配置
+
+# 4. 启动开发服务器
+npm run dev
+```
+
+### 常用命令
+```bash
+# 开发
+npm run dev          # 启动开发服务器
+npm run build        # 构建生产版本
+npm run type-check   # TypeScript类型检查
+npm run lint         # 代码风格检查
+
+# 测试
+npm run test         # 运行测试
+npm run test:e2e     # E2E测试
+
+# 数据库
+npx supabase gen types typescript --project-id [ID] > types/database.ts
+```
+
+### Git工作流
+```bash
+# 创建功能分支
+git checkout -b feature/new-feature
+
+# 提交更改
+git add .
+git commit -m "feat: add new feature"
+
+# 推送到远程
+git push origin feature/new-feature
+
+# 创建Pull Request
+```
+
 ## 💡 AI Assistant Instructions
 
 When generating code for this project:
@@ -665,6 +893,10 @@ When generating code for this project:
 8. PREFER server components in app/ directory
 9. USE 'use client' directive only when needed
 10. IMPLEMENT loading and error states
+11. FOLLOW the Context-aware development pattern
+12. USE the mock authentication for development
+13. IMPLEMENT bilingual support (Chinese/English)
+14. LEVERAGE the AI intelligence system architecture
 
 ## 🎯 Success Metrics
 
