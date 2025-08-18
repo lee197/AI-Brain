@@ -6,10 +6,12 @@ import {
   ContextQuery, 
   ContextType, 
   LifecycleType,
-  CONTEXT_TYPE_INFO,
+  DataSourceType,
+  DataSourceConfig,
   ROLE_PERMISSIONS,
   MemberRole
 } from '@/types/context'
+import { getContextTypeInfo } from '@/lib/context-utils'
 import { 
   mockStorage, 
   getUserContexts, 
@@ -17,12 +19,28 @@ import {
   generateContextId 
 } from '@/lib/mock-storage'
 
+// 创建数据源配置
+function createDataSourceConfigs(selectedTypes: DataSourceType[]): DataSourceConfig[] {
+  return selectedTypes.map(type => ({
+    id: `${type.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    type,
+    config: {
+      // 初始空配置，将在用户完成OAuth后填充
+      connected: false,
+      setupRequired: true
+    },
+    connectedAt: new Date(),
+    status: 'DISCONNECTED' as const
+  }))
+}
+
 // 验证schema
 const createContextSchema = z.object({
   type: z.enum(['PROJECT', 'DEPARTMENT', 'TEAM', 'CLIENT', 'PERSONAL']),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   lifecycle: z.enum(['TEMPORARY', 'PERMANENT', 'TRIGGERED']).optional(),
+  selectedDataSources: z.array(z.enum(['SLACK', 'JIRA', 'GITHUB', 'GOOGLE', 'NOTION'])).optional(),
   settings: z.object({
     isPublic: z.boolean().optional(),
     allowInvites: z.boolean().optional(),
@@ -171,12 +189,12 @@ export async function POST(request: NextRequest) {
           joinedAt: new Date(),
         }
       ],
-      lifecycle: validated.lifecycle || CONTEXT_TYPE_INFO[validated.type].defaultLifecycle,
+      lifecycle: validated.lifecycle || getContextTypeInfo(validated.type, 'zh').defaultLifecycle,
       createdAt: new Date(),
       settings: {
         isPublic: validated.settings?.isPublic ?? false,
         allowInvites: validated.settings?.allowInvites ?? true,
-        dataSources: [],
+        dataSources: createDataSourceConfigs(validated.selectedDataSources || []),
         aiEnabled: validated.settings?.aiEnabled ?? true,
         notifications: {
           emailNotifications: true,

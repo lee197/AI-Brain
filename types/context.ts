@@ -79,7 +79,11 @@ export interface CreateContextRequest {
   lifecycle?: LifecycleType
   settings?: Partial<ContextSettings>
   initialMembers?: string[] // user IDs
+  selectedDataSources?: DataSourceType[] // 选择的数据源类型
 }
+
+// 数据源类型
+export type DataSourceType = 'SLACK' | 'JIRA' | 'GITHUB' | 'GOOGLE' | 'NOTION'
 
 // Context更新请求
 export interface UpdateContextRequest {

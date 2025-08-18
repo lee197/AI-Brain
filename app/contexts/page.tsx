@@ -8,10 +8,17 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { DeleteContextDialog } from '@/components/delete-context-dialog'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { UserMenu } from '@/components/user-menu'
-import { CreateContextDialog } from '@/components/create-context-dialog'
 import { useAuth } from '@/hooks/use-auth'
 import { Context, ContextType } from '@/types/context'
 import { getContextTypeInfo } from '@/lib/context-utils'
@@ -32,7 +39,10 @@ import {
   BookOpen,
   Target,
   Shield,
-  Rocket
+  Rocket,
+  MoreVertical,
+  Trash2,
+  Edit3
 } from 'lucide-react'
 
 export default function ContextsPage() {
@@ -42,8 +52,9 @@ export default function ContextsPage() {
   const [contexts, setContexts] = useState<Context[]>([])
   const [loadingContexts, setLoadingContexts] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedContextType, setSelectedContextType] = useState<ContextType | 'ALL'>('ALL')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [contextToDelete, setContextToDelete] = useState<Context | null>(null)
 
   // 检查认证状态
   useEffect(() => {
@@ -84,13 +95,42 @@ export default function ContextsPage() {
     router.push('/dashboard')
   }
 
-  // 处理Context创建
-  const handleContextCreated = (context: Context) => {
-    setContexts(prev => [...prev, context])
-    setShowCreateDialog(false)
-    // 自动选择新创建的Context
-    handleContextSelect(context)
+  // 处理删除Context
+  const handleDeleteContext = (context: Context) => {
+    setContextToDelete(context)
+    setDeleteDialogOpen(true)
   }
+
+  // 确认删除Context
+  const confirmDeleteContext = async (contextId: string) => {
+    try {
+      const response = await fetch(`/api/contexts/${contextId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          permanent: true,
+          confirmText: language === 'zh' ? '永久删除' : 'DELETE FOREVER'
+        }),
+      })
+
+      if (response.ok) {
+        // 重新加载Context列表
+        await loadContexts()
+        setDeleteDialogOpen(false)
+        setContextToDelete(null)
+      } else {
+        const error = await response.json()
+        console.error('Failed to delete context:', error)
+        throw new Error(error.error || 'Failed to delete context')
+      }
+    } catch (error) {
+      console.error('Delete context error:', error)
+      throw error
+    }
+  }
+
 
   // 过滤和分组Context
   const filteredContexts = contexts.filter(ctx => {
@@ -217,7 +257,7 @@ export default function ContextsPage() {
             </div>
             
             <Button 
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => router.push('/contexts/new')}
               size="lg"
               className="h-12 px-6"
             >
@@ -257,7 +297,7 @@ export default function ContextsPage() {
             <p className="text-muted-foreground mb-6">
               {searchTerm ? t.dashboard.contexts.tryAdjustSearch : t.dashboard.contexts.noWorkspacesDesc}
             </p>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <Button onClick={() => router.push('/contexts/new')}>
               <Plus className="w-4 h-4 mr-2" />
               {t.dashboard.contexts.createWorkspace}
             </Button>
@@ -280,14 +320,16 @@ export default function ContextsPage() {
                   {typeContexts.map((context) => (
                     <Card 
                       key={context.id} 
-                      className="group cursor-pointer hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-0 shadow-md"
-                      onClick={() => handleContextSelect(context)}
+                      className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-0 shadow-md relative"
                     >
                       <CardHeader className="pb-3">
                         <div className={`w-full h-2 rounded-full bg-gradient-to-r ${getContextColor(context.type)} mb-3`} />
                         
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
+                          <div 
+                            className="flex items-center gap-3 flex-1 cursor-pointer"
+                            onClick={() => handleContextSelect(context)}
+                          >
                             <Avatar className="h-12 w-12">
                               <AvatarFallback className={`text-white bg-gradient-to-r ${getContextColor(context.type)}`}>
                                 {context.name.charAt(0).toUpperCase()}
@@ -306,7 +348,49 @@ export default function ContextsPage() {
                             </div>
                           </div>
                           
-                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                          <div className="flex items-center gap-2">
+                            <ArrowRight 
+                              className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all cursor-pointer"
+                              onClick={() => handleContextSelect(context)}
+                            />
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem 
+                                  onClick={() => handleContextSelect(context)}
+                                  className="cursor-pointer"
+                                >
+                                  <ArrowRight className="w-4 h-4 mr-2" />
+                                  {language === 'zh' ? '进入工作空间' : 'Enter Workspace'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => console.log('Edit context:', context.id)}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit3 className="w-4 h-4 mr-2" />
+                                  {language === 'zh' ? '编辑设置' : 'Edit Settings'}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteContext(context)}
+                                  className="cursor-pointer text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {language === 'zh' ? '删除工作空间' : 'Delete Workspace'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </CardHeader>
                       
@@ -335,11 +419,12 @@ export default function ContextsPage() {
         )}
       </main>
 
-      {/* Context创建对话框 */}
-      <CreateContextDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onContextCreated={handleContextCreated}
+      {/* Delete Context Dialog */}
+      <DeleteContextDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        context={contextToDelete}
+        onConfirmDelete={confirmDeleteContext}
       />
     </div>
   )

@@ -9,51 +9,31 @@ import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
+import { Markdown } from '@/components/ui/markdown'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { UserMenu } from '@/components/user-menu'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { useAuth } from '@/hooks/use-auth'
 import { useContextManager } from '@/hooks/use-context'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
-import { Context } from '@/types/context'
 import { 
-  MessageSquare, 
   CheckCircle2,
-  AlertCircle,
   Clock,
-  TrendingUp,
   Users,
   FileText,
-  GitPullRequest,
   Calendar,
   Search,
   Bell,
-  LayoutDashboard,
-  FolderOpen,
-  Settings,
-  PlusCircle,
   Send,
-  Activity,
-  Zap,
   Database,
   Globe,
   Brain,
-  Inbox,
   BarChart3,
-  Target,
-  AlertTriangle,
   CheckSquare,
   Loader2,
-  Play,
-  Pause,
-  RotateCcw,
-  Monitor,
   Sparkles,
-  ArrowUpRight,
-  Cpu,
-  Wifi,
-  WifiOff,
-  GripVertical
+  AlertTriangle,
+  Target,
+  TrendingUp
 } from 'lucide-react'
 
 interface Message {
@@ -106,6 +86,8 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [activeActions, setActiveActions] = useState<ActionItem[]>([])
+
+
 
   // 检查认证状态
   useEffect(() => {
@@ -187,11 +169,9 @@ ${t.dashboard.howCanIHelp}`
   }, [currentContext, contextLoading, router])
 
   // 定义处理函数
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!aiInput.trim()) return
 
-    const contextPrefix = currentContext ? `[${currentContext.name}] ` : ''
-    
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -200,32 +180,74 @@ ${t.dashboard.howCanIHelp}`
     }
 
     setMessages(prev => [...prev, userMessage])
+    const currentInput = aiInput
     setAiInput('')
     setIsProcessing(true)
 
-    // 模拟 AI 响应（Context感知）
-    setTimeout(() => {
-      const contextAwareResponse = currentContext 
-        ? `${contextPrefix}${t.dashboard.aiResponse}\n\n基于当前工作空间"${currentContext.name}"的上下文，我建议：\n1. 在此${currentContext.type === 'PROJECT' ? '项目' : currentContext.type === 'DEPARTMENT' ? '部门' : '工作空间'}内处理相关任务\n2. 确保与团队成员协调\n3. 遵循工作空间的设置和规范`
-        : t.dashboard.aiResponse
+    try {
+      // 调用真正的AI API
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          contextId: currentContext?.id,
+          conversationId: `conv_${Date.now()}`, // 简单的会话ID生成
+          aiModel: 'openai' // 可以让用户选择
+        }),
+      })
 
+      if (!response.ok) {
+        throw new Error(`AI服务错误: ${response.status}`)
+      }
+
+      const aiData = await response.json()
+      
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: contextAwareResponse,
+        content: aiData.response,
         timestamp: new Date(),
-        actions: [
-          {
-            id: 'action1',
-            type: 'create_task',
-            title: currentContext ? `在 ${currentContext.name} 中创建任务` : t.dashboard.createJiraTask,
-            status: 'pending'
-          }
-        ]
+        actions: aiData.actions?.map((action: any, index: number) => ({
+          id: `action_${Date.now()}_${index}`,
+          type: action.type,
+          title: action.title,
+          status: action.status || 'pending'
+        })) || []
       }
+      
       setMessages(prev => [...prev, aiResponse])
+      
+      // 如果有可执行操作，添加到活动操作列表
+      if (aiData.actions?.length > 0) {
+        setActiveActions(prev => [...prev, ...aiResponse.actions])
+      }
+      
+    } catch (error) {
+      console.error('AI Chat Error:', error)
+      
+      // 错误时的降级响应
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `抱歉，AI服务暂时不可用。但我可以提供一些基本帮助：
+
+${currentContext ? `当前工作空间: **${currentContext.name}**\n\n` : ''}请尝试以下操作：
+• 检查网络连接
+• 稍后重试
+• 使用快捷标签快速开始常见任务
+
+或者直接告诉我你需要什么帮助，我会尽力协助你。`,
+        timestamp: new Date(),
+        actions: []
+      }
+      
+      setMessages(prev => [...prev, errorResponse])
+    } finally {
       setIsProcessing(false)
-    }, 2000)
+    }
   }
 
   // 如果正在加载，显示加载状态
@@ -314,185 +336,22 @@ ${t.dashboard.howCanIHelp}`
   ]
 
   return (
-    <div className="h-screen bg-background">
-      <PanelGroup direction="horizontal" className="h-full">
-        {/* 左侧智能概览面板 */}
-        <Panel defaultSize={25} minSize={15} maxSize={40} className="bg-card/50 flex flex-col">
-        {/* 当前Context显示区域 */}
-        <div className="p-4 border-b">
-          {currentContext ? (
-            <div className="flex items-center gap-3">
-              <div className="text-2xl">
-                {currentContext.type === 'PROJECT' ? '🚀' :
-                 currentContext.type === 'DEPARTMENT' ? '🏢' :
-                 currentContext.type === 'TEAM' ? '👥' :
-                 currentContext.type === 'CLIENT' ? '🤝' : '📝'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm truncate">
-                  {currentContext.name}
-                </h3>
-                <Badge variant="secondary" className="text-xs mt-1">
-                  {currentContext.type === 'PROJECT' ? '项目' :
-                   currentContext.type === 'DEPARTMENT' ? '部门' :
-                   currentContext.type === 'TEAM' ? '团队' :
-                   currentContext.type === 'CLIENT' ? '客户' : '个人'}
-                </Badge>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => router.push('/contexts')}
-                className="text-xs"
-              >
-                {t.dashboard.contexts.switch}
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-            </div>
-          )}
-        </div>
-
-        {/* 三模块架构状态 */}
-        <div className="p-4 border-b">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Monitor className="w-4 h-4" />
-            {t.dashboard.systemStatus}
-          </h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-2">
-                <Inbox className="w-3 h-3" />
-                {t.dashboard.dataCollection}
-              </span>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-600">{t.dashboard.running}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-2">
-                <Brain className="w-3 h-3" />
-                {t.dashboard.aiAnalysis}
-              </span>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-blue-600">{t.dashboard.processing}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-2">
-                <Zap className="w-3 h-3" />
-                {t.dashboard.taskExecution}
-              </span>
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-orange-600">{t.dashboard.ready}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 数据源状态 */}
-        <div className="p-4 border-b">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Database className="w-4 h-4" />
-            {t.dashboard.dataSources}
-          </h3>
-          <ScrollArea className="h-32">
-            <div className="space-y-2">
-              {dataSources.map((source) => (
-                <div key={source.id} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
-                  <div className="flex items-center gap-2">
-                    {source.status === 'connected' && <Wifi className="w-3 h-3 text-green-500" />}
-                    {source.status === 'syncing' && <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />}
-                    {source.status === 'error' && <WifiOff className="w-3 h-3 text-red-500" />}
-                    <span>{source.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">{source.itemCount}</div>
-                    <div className="text-xs">{source.quality}%</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-
-        {/* 智能洞察 */}
-        <div className="flex-1 p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            {t.dashboard.insights}
-          </h3>
-          <ScrollArea className="h-full">
-            <div className="space-y-3">
-              {insights.map((insight) => (
-                <Card key={insight.id} className="p-3 text-xs">
-                  <div className="flex items-start gap-2">
-                    <insight.icon className={`w-4 h-4 mt-0.5 ${
-                      insight.priority === 'high' ? 'text-red-500' :
-                      insight.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
-                    }`} />
-                    <div className="flex-1">
-                      <p className="font-medium mb-1">
-                        {insight.id === '1' ? t.dashboard.projectRisk :
-                         insight.id === '2' ? t.dashboard.resourceOptimization :
-                         t.dashboard.codeQuality}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {insight.id === '1' ? t.dashboard.projectRiskDesc :
-                         insight.id === '2' ? t.dashboard.resourceOptimizationDesc :
-                         t.dashboard.codeQualityDesc}
-                      </p>
-                      {insight.actionable && (
-                        <Button size="sm" variant="outline" className="mt-2 h-6 px-2 text-xs">
-                          {t.dashboard.takeAction}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-        </Panel>
-
-        {/* 左右面板之间的调整把手 */}
-        <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20 transition-colors flex items-center justify-center group">
-          <div className="w-1 h-8 bg-border rounded-full group-hover:bg-primary/50 transition-colors">
-            <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </PanelResizeHandle>
-
-        {/* 中央 AI 对话区域 */}
-        <Panel defaultSize={55} minSize={40} className="flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background">
+        
         {/* 顶部状态栏 */}
         <header className="border-b bg-card/50 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-muted-foreground">{t.dashboard.syncing} 3/4</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <CheckSquare className="w-4 h-4 text-blue-500" />
-                <span className="text-muted-foreground">{t.dashboard.pending} 5</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4 text-orange-500" />
-                <span className="text-muted-foreground">{t.dashboard.queued} 2</span>
-              </div>
+            <div className="flex items-center gap-4">
+              <h1 className="text-lg font-semibold">
+                {currentContext ? currentContext.name : 'AI Brain'}
+              </h1>
+              <Badge variant="outline" className="text-xs">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {t.dashboard.aiReady || 'AI 就绪'}
+              </Badge>
             </div>
 
             <div className="flex items-center gap-4">
-              <Badge variant="outline" className="text-xs">
-                <Cpu className="w-3 h-3 mr-1" />
-                {t.dashboard.aiMode}: {t.dashboard.enhanced}
-              </Badge>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="w-4 h-4" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -528,9 +387,16 @@ ${t.dashboard.howCanIHelp}`
                         ? 'bg-primary text-primary-foreground ml-auto max-w-lg' 
                         : 'bg-card border'
                     }`}>
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                        {message.content}
-                      </div>
+                      {message.role === 'assistant' ? (
+                        <Markdown 
+                          content={message.content} 
+                          className="whitespace-pre-wrap text-sm leading-relaxed"
+                        />
+                      ) : (
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {message.content}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -658,91 +524,78 @@ ${t.dashboard.howCanIHelp}`
                 </Button>
               </div>
               
-              {/* 快捷建议 */}
+              {/* 快捷建议 - 整合原左侧面板的提示 */}
               <div className="flex flex-wrap gap-2 mt-4">
-                {[
-                  t.dashboard.suggestions.todayTasks,
-                  t.dashboard.suggestions.progressReport,
-                  t.dashboard.suggestions.optimizeWorkload,
-                  t.dashboard.suggestions.urgentTask,
-                  t.dashboard.suggestions.scheduleMeeting
-                ].map((suggestion, index) => (
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('查看当前数据源连接状态')}
+                >
+                  <Database className="w-3 h-3" />
+                  查看数据源
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('为我生成今天的任务清单')}
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  任务清单
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('分析团队本周的工作进展')}
+                >
+                  <BarChart3 className="w-3 h-3" />
+                  工作进展
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('帮我安排下周的会议')}
+                >
+                  <Calendar className="w-3 h-3" />
+                  安排会议
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('搜索相关项目文档')}
+                >
+                  <Search className="w-3 h-3" />
+                  搜索文档
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('生成项目状态报告')}
+                >
+                  <FileText className="w-3 h-3" />
+                  生成报告
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                  onClick={() => setAiInput('查看团队成员状态')}
+                >
+                  <Users className="w-3 h-3" />
+                  团队状态
+                </Badge>
+                {currentContext && (
                   <Badge 
-                    key={index}
-                    variant="secondary" 
-                    className="cursor-pointer hover:bg-secondary/80"
-                    onClick={() => setAiInput(suggestion)}
+                    variant="outline" 
+                    className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
+                    onClick={() => router.push('/contexts')}
                   >
-                    {suggestion}
+                    <Globe className="w-3 h-3" />
+                    切换工作空间
                   </Badge>
-                ))}
+                )}
               </div>
             </div>
           </div>
         </main>
-        </Panel>
-
-        {/* 中右面板之间的调整把手 */}
-        <PanelResizeHandle className="w-2 bg-border hover:bg-primary/20 transition-colors flex items-center justify-center group">
-          <div className="w-1 h-8 bg-border rounded-full group-hover:bg-primary/50 transition-colors">
-            <GripVertical className="w-3 h-3 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </PanelResizeHandle>
-
-        {/* 右侧任务执行面板 */}
-        <Panel defaultSize={20} minSize={15} maxSize={35} className="border-l bg-card/30 flex flex-col">
-        <div className="p-4 border-b">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            {t.dashboard.executionQueue}
-          </h3>
-        </div>
-        
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-3">
-            {activeActions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{t.dashboard.noTasks}</p>
-              </div>
-            ) : (
-              activeActions.map((action) => (
-                <Card key={action.id} className="p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    {action.status === 'executing' && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
-                    {action.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                    {action.status === 'pending' && <Clock className="w-4 h-4 text-orange-500" />}
-                    {action.status === 'failed' && <AlertCircle className="w-4 h-4 text-red-500" />}
-                    <span className="text-sm font-medium">{action.title}</span>
-                  </div>
-                  {action.progress !== undefined && (
-                    <Progress value={action.progress} className="mb-2" />
-                  )}
-                  <div className="flex gap-1">
-                    {action.status === 'pending' && (
-                      <Button size="sm" variant="outline" className="h-6 text-xs">
-                        <Play className="w-3 h-3 mr-1" />
-                        {t.dashboard.start}
-                      </Button>
-                    )}
-                    {action.status === 'executing' && (
-                      <Button size="sm" variant="outline" className="h-6 text-xs">
-                        <Pause className="w-3 h-3 mr-1" />
-                        {t.dashboard.pause}
-                      </Button>
-                    )}
-                    <Button size="sm" variant="ghost" className="h-6 text-xs">
-                      <RotateCcw className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-        </Panel>
-      </PanelGroup>
-
     </div>
   )
 }

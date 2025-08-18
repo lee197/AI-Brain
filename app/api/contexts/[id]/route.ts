@@ -152,7 +152,13 @@ export async function PUT(
   }
 }
 
-// DELETE /api/contexts/[id] - 归档Context
+// Deletion confirmation schema
+const deleteSchema = z.object({
+  confirmText: z.string(),
+  permanent: z.boolean().optional().default(false),
+})
+
+// DELETE /api/contexts/[id] - 删除Context（支持软删除和硬删除）
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -160,28 +166,69 @@ export async function DELETE(
   try {
     const userId = getCurrentUserId(request)
     const contextId = params.id
+    const body = await request.json()
+    const { confirmText, permanent } = deleteSchema.parse(body)
 
     const context = getContextById(contextId)
     if (!context) {
       return NextResponse.json({ error: 'Context not found' }, { status: 404 })
     }
 
-    // 检查删除权限（只有Owner可以归档Context）
+    // 检查删除权限（只有Owner可以删除Context）
     if (!hasPermission(context, userId, CONTEXT_PERMISSIONS.DELETE)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // 归档Context（软删除）
-    const success = removeContextById(contextId)
-    if (!success) {
-      return NextResponse.json({ error: 'Failed to archive context' }, { status: 500 })
+    // 如果是永久删除，验证确认文本
+    if (permanent) {
+      if (confirmText !== '永久删除' && confirmText !== 'DELETE FOREVER') {
+        return NextResponse.json(
+          { error: 'Invalid confirmation text for permanent deletion' },
+          { status: 400 }
+        )
+      }
+
+      // 模拟永久删除操作
+      console.log(`Permanently deleting context: ${contextId}`)
+      console.log('- Removing AI training data and conversation history')
+      console.log('- Clearing vector database content and knowledge graphs')
+      console.log('- Disconnecting data source integrations:', context.dataSources)
+      console.log('- Deleting uploaded documents and generated reports')
+      console.log('- Removing member access permissions for', context.members.length, 'members')
+
+      // 模拟处理时间
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      // 执行永久删除
+      const success = removeContextById(contextId)
+      if (!success) {
+        return NextResponse.json({ error: 'Failed to permanently delete context' }, { status: 500 })
+      }
+
+      return NextResponse.json({ 
+        message: 'Context permanently deleted',
+        permanent: true
+      })
+    } else {
+      // 软删除（归档）
+      const success = removeContextById(contextId)
+      if (!success) {
+        return NextResponse.json({ error: 'Failed to archive context' }, { status: 500 })
+      }
+
+      return NextResponse.json({ 
+        message: 'Context archived successfully',
+        permanent: false
+      })
     }
 
-    return NextResponse.json({ 
-      message: 'Context archived successfully'
-    })
-
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.errors },
+        { status: 400 }
+      )
+    }
     console.error('DELETE /api/contexts/[id] error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

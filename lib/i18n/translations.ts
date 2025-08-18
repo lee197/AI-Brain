@@ -209,6 +209,79 @@ export const translations = {
         weeksAgo: "周前",
         daysAgo: "天前",
         switch: "切换",
+        step: "步骤",
+        of: "共",
+        next: "下一步",
+        previous: "上一步",
+        skip: "跳过",
+        finish: "完成",
+      },
+      // 数据源管理
+      dataSources: {
+        title: "数据源配置",
+        description: "选择要集成的企业工具，AI 将从这些源获取数据",
+        selectSources: "选择数据源",
+        configureIntegrations: "配置集成",
+        availableIntegrations: "可用集成",
+        selectedSources: "已选择的数据源",
+        noSourcesSelected: "暂未选择数据源",
+        selectAtLeastOne: "请至少选择一个数据源",
+        integrationSteps: "集成步骤",
+        connectNow: "立即连接",
+        configureNow: "立即配置",
+        skipForNow: "暂时跳过",
+        requiredScopes: "所需权限",
+        estimatedTime: "预计用时",
+        difficulty: "难度",
+        status: {
+          notConnected: "未连接",
+          connecting: "连接中",
+          connected: "已连接",
+          error: "连接错误",
+          configuring: "配置中",
+        },
+        types: {
+          slack: {
+            name: "Slack",
+            description: "团队沟通和协作平台",
+            features: ["消息历史", "频道信息", "用户状态", "文件共享"],
+            scopes: ["读取消息", "发送消息", "管理频道"],
+            time: "5-10分钟",
+            difficulty: "简单"
+          },
+          jira: {
+            name: "Jira",
+            description: "项目管理和问题跟踪",
+            features: ["任务管理", "项目进度", "工作流状态", "报告数据"],
+            scopes: ["读取项目", "创建任务", "更新状态"],
+            time: "10-15分钟",
+            difficulty: "中等"
+          },
+          github: {
+            name: "GitHub",
+            description: "代码仓库和开发协作",
+            features: ["代码仓库", "Pull Request", "Issue 跟踪", "提交历史"],
+            scopes: ["读取仓库", "管理 PR", "访问 Issue"],
+            time: "5-8分钟",
+            difficulty: "简单"
+          },
+          google: {
+            name: "Google Workspace",
+            description: "办公套件和云存储",
+            features: ["日历管理", "文档协作", "邮件集成", "云端存储"],
+            scopes: ["读取日历", "访问文档", "管理邮件"],
+            time: "8-12分钟",
+            difficulty: "中等"
+          },
+          notion: {
+            name: "Notion",
+            description: "知识管理和文档协作",
+            features: ["页面内容", "数据库", "任务列表", "团队空间"],
+            scopes: ["读取页面", "管理数据库", "创建内容"],
+            time: "6-10分钟",
+            difficulty: "简单"
+          }
+        }
       },
       // Context 类型信息
       contextTypes: {
@@ -582,6 +655,79 @@ export const translations = {
         weeksAgo: "weeks ago",
         daysAgo: "days ago",
         switch: "Switch",
+        step: "Step",
+        of: "of",
+        next: "Next",
+        previous: "Previous",
+        skip: "Skip",
+        finish: "Finish",
+      },
+      // Data Sources Management
+      dataSources: {
+        title: "Data Source Configuration",
+        description: "Select enterprise tools to integrate, AI will get data from these sources",
+        selectSources: "Select Data Sources",
+        configureIntegrations: "Configure Integrations",
+        availableIntegrations: "Available Integrations",
+        selectedSources: "Selected Data Sources",
+        noSourcesSelected: "No data sources selected",
+        selectAtLeastOne: "Please select at least one data source",
+        integrationSteps: "Integration Steps",
+        connectNow: "Connect Now",
+        configureNow: "Configure Now",
+        skipForNow: "Skip for Now",
+        requiredScopes: "Required Permissions",
+        estimatedTime: "Estimated Time",
+        difficulty: "Difficulty",
+        status: {
+          notConnected: "Not Connected",
+          connecting: "Connecting",
+          connected: "Connected",
+          error: "Connection Error",
+          configuring: "Configuring",
+        },
+        types: {
+          slack: {
+            name: "Slack",
+            description: "Team communication and collaboration platform",
+            features: ["Message history", "Channel info", "User status", "File sharing"],
+            scopes: ["Read messages", "Send messages", "Manage channels"],
+            time: "5-10 minutes",
+            difficulty: "Easy"
+          },
+          jira: {
+            name: "Jira",
+            description: "Project management and issue tracking",
+            features: ["Task management", "Project progress", "Workflow status", "Report data"],
+            scopes: ["Read projects", "Create tasks", "Update status"],
+            time: "10-15 minutes",
+            difficulty: "Medium"
+          },
+          github: {
+            name: "GitHub",
+            description: "Code repository and development collaboration",
+            features: ["Code repositories", "Pull Requests", "Issue tracking", "Commit history"],
+            scopes: ["Read repositories", "Manage PRs", "Access Issues"],
+            time: "5-8 minutes",
+            difficulty: "Easy"
+          },
+          google: {
+            name: "Google Workspace",
+            description: "Office suite and cloud storage",
+            features: ["Calendar management", "Document collaboration", "Email integration", "Cloud storage"],
+            scopes: ["Read calendar", "Access documents", "Manage email"],
+            time: "8-12 minutes",
+            difficulty: "Medium"
+          },
+          notion: {
+            name: "Notion",
+            description: "Knowledge management and document collaboration",
+            features: ["Page content", "Databases", "Task lists", "Team workspaces"],
+            scopes: ["Read pages", "Manage databases", "Create content"],
+            time: "6-10 minutes",
+            difficulty: "Easy"
+          }
+        }
       },
       // Context type information
       contextTypes: {
