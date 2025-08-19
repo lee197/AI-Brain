@@ -40,13 +40,21 @@ export interface MockUser {
 }
 
 // 检查是否在模拟模式
+// 现在只有在明确设置 USE_MOCK_AUTH=true 或没有配置 Supabase 时才使用模拟模式
 export function isMockMode() {
-  return !process.env.NEXT_PUBLIC_SUPABASE_URL || 
-         !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-         process.env.NEXT_PUBLIC_SUPABASE_URL === 'your-project.supabase.co' ||
-         process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://your-project.supabase.co' ||
-         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === 'your-supabase-anon-key' ||
-         process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true'
+  const hasSupabaseConfig = process.env.NEXT_PUBLIC_SUPABASE_URL && 
+                            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+                            process.env.NEXT_PUBLIC_SUPABASE_URL !== 'your-project.supabase.co' &&
+                            process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://your-project.supabase.co' &&
+                            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== 'your-supabase-anon-key'
+  
+  // 如果有真实的 Supabase 配置且没有强制使用模拟模式，则使用 Supabase
+  if (hasSupabaseConfig && process.env.NEXT_PUBLIC_USE_MOCK_AUTH !== 'true') {
+    return false // 使用 Supabase
+  }
+  
+  // 否则使用模拟模式
+  return true
 }
 
 // 模拟登录

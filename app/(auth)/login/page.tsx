@@ -110,54 +110,12 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Demo Credentials Section */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
-            <h4 className="text-sm font-medium text-blue-900">{t.auth.demo.title}</h4>
-            <p className="text-xs text-blue-700 mb-2">{t.auth.demo.subtitle}</p>
-            <div className="grid grid-cols-1 gap-2 text-xs">
-              <div className="bg-white p-2 rounded border border-blue-100">
-                <div className="font-medium text-blue-800">{t.auth.demo.admin.desc}</div>
-                <div className="text-blue-600 font-mono">
-                  <span 
-                    className="cursor-pointer hover:bg-blue-100 px-1 rounded"
-                    onClick={() => navigator.clipboard.writeText(t.auth.demo.admin.email)}
-                    title={t.auth.demo.clickToCopy}
-                  >
-                    {t.auth.demo.admin.email}
-                  </span>
-                </div>
-                <div className="text-blue-600 font-mono">
-                  <span 
-                    className="cursor-pointer hover:bg-blue-100 px-1 rounded"
-                    onClick={() => navigator.clipboard.writeText(t.auth.demo.admin.password)}
-                    title={t.auth.demo.clickToCopy}
-                  >
-                    {t.auth.demo.admin.password}
-                  </span>
-                </div>
-              </div>
-              <div className="bg-white p-2 rounded border border-blue-100">
-                <div className="font-medium text-blue-800">{t.auth.demo.user.desc}</div>
-                <div className="text-blue-600 font-mono">
-                  <span 
-                    className="cursor-pointer hover:bg-blue-100 px-1 rounded"
-                    onClick={() => navigator.clipboard.writeText(t.auth.demo.user.email)}
-                    title={t.auth.demo.clickToCopy}
-                  >
-                    {t.auth.demo.user.email}
-                  </span>
-                </div>
-                <div className="text-blue-600 font-mono">
-                  <span 
-                    className="cursor-pointer hover:bg-blue-100 px-1 rounded"
-                    onClick={() => navigator.clipboard.writeText(t.auth.demo.user.password)}
-                    title={t.auth.demo.clickToCopy}
-                  >
-                    {t.auth.demo.user.password}
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Supabase Authentication Notice */}
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md space-y-2">
+            <h4 className="text-sm font-medium text-green-900">🔐 安全登录</h4>
+            <p className="text-xs text-green-700">
+              使用您的 Supabase 账户安全登录。所有数据都经过加密保护。
+            </p>
           </div>
 
           <form action={handleFormSubmit} className="space-y-4">

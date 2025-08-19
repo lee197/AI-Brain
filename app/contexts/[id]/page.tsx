@@ -1,11 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -13,18 +11,25 @@ import { UserMenu } from '@/components/user-menu'
 import { useAuth } from '@/hooks/use-auth'
 import { Context } from '@/types/context'
 import { getContextTypeInfo } from '@/lib/context-utils'
+import { createClient } from '@/lib/supabase/client'
+import { AddToSlackButton } from '@/components/slack/add-to-slack-button'
+import { SlackSuccessToast } from '@/components/slack/slack-success-toast'
+import { SlackConnectionToggle } from '@/components/slack/slack-connection-toggle'
 import { 
-  ArrowLeft,
-  Settings,
-  Users,
-  Activity,
   MessageSquare,
   BarChart3,
-  Calendar,
   FileText,
   Zap,
-  Target,
-  TrendingUp
+  Plus,
+  Send,
+  Settings,
+  Github,
+  Slack,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Search,
+  MoreHorizontal
 } from 'lucide-react'
 
 export default function ContextDashboardPage() {
@@ -34,8 +39,205 @@ export default function ContextDashboardPage() {
   const { user, loading } = useAuth()
   const [context, setContext] = useState<Context | null>(null)
   const [loadingContext, setLoadingContext] = useState(true)
+  const [message, setMessage] = useState('')
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [messages, setMessages] = useState<Array<{
+    id: string
+    role: 'user' | 'assistant'
+    content: string
+    timestamp: Date
+    source?: 'ai' | 'slack' | 'user'
+    author?: {
+      name: string
+      avatar?: string
+    }
+    channel?: string
+    metadata?: {
+      channelId?: string
+      messageId?: string
+    }
+  }>>([])
+  const [isSending, setIsSending] = useState(false)
+  const [slackConnected, setSlackConnected] = useState(false)
+  const [slackStatus, setSlackStatus] = useState<'loading' | 'connected' | 'disconnected'>('loading')
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [isDemo, setIsDemo] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const contextId = params.id as string
+
+  // 动态数据源状态
+  const dataSources = [
+    { 
+      name: 'Slack', 
+      icon: Slack, 
+      status: slackStatus === 'connected' ? 'connected' : 
+              slackStatus === 'loading' ? 'syncing' : 'disconnected',
+      color: slackStatus === 'connected' ? 'text-green-500' : 
+             slackStatus === 'loading' ? 'text-yellow-500' : 'text-gray-400'
+    },
+    { name: 'Jira', icon: FileText, status: 'syncing', color: 'text-yellow-500' },
+    { name: 'GitHub', icon: Github, status: 'connected', color: 'text-green-500' },
+    { name: 'Google Drive', icon: FileText, status: 'error', color: 'text-red-500' },
+  ]
+
+  // Quick prompt suggestions
+  const quickPrompts = [
+    { title: '今日安排', prompt: '帮我查看今天的会议安排和待办事项', icon: Clock },
+    { title: '创建任务', prompt: '创建一个新的Jira任务，标题是[描述任务]', icon: Plus },
+    { title: '项目状态', prompt: '生成本周项目进度报告', icon: BarChart3 },
+    { title: '团队协作', prompt: '通知团队成员关于[具体事项]', icon: MessageSquare },
+    { title: '代码审查', prompt: '检查待审核的Pull Request', icon: Github },
+    { title: '数据分析', prompt: '分析最近的团队表现数据', icon: BarChart3 },
+  ]
+
+  // 发送消息功能
+  const handleSendMessage = async () => {
+    if (!message.trim() || isSending) return
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user' as const,
+      content: message.trim(),
+      timestamp: new Date()
+    }
+
+    // 添加用户消息
+    setMessages(prev => [...prev, userMessage])
+    const messageContent = message.trim()
+    setMessage('')
+    setIsSending(true)
+
+    try {
+      // 优先尝试Gemini API，如果失败则使用原有的API
+      let response = await fetch('/api/ai/chat-gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: messageContent,
+          contextId: contextId,
+        }),
+      })
+      
+      // 如果Gemini API失败，降级到原有API
+      if (!response.ok) {
+        response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: messageContent,
+            contextId: contextId,
+            aiModel: 'openai'
+          }),
+        })
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      const aiMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: data.response || '抱歉，我暂时无法回复您的消息。',
+        timestamp: new Date()
+      }
+
+      setMessages(prev => [...prev, aiMessage])
+      setIsSending(false)
+    } catch (error) {
+      console.error('发送消息失败:', error)
+      
+      // 添加错误消息
+      const errorMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: '抱歉，我遇到了一些技术问题，请稍后再试。您也可以尝试重新发送您的消息。',
+        timestamp: new Date()
+      }
+      
+      setMessages(prev => [...prev, errorMessage])
+      setIsSending(false)
+    }
+  }
+
+  // 键盘事件处理
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  // 填充快速提示词
+  const handleQuickPrompt = (prompt: string) => {
+    setMessage(prompt)
+  }
+
+  // 检查Slack连接状态
+  const checkSlackStatus = async (isDemo = false) => {
+    try {
+      const url = isDemo ? '/api/slack/status?demo=true' : '/api/slack/status'
+      const response = await fetch(url)
+      const data = await response.json()
+      
+      if (data.status === 'connected') {
+        setSlackStatus('connected')
+        setSlackConnected(true)
+        console.log('✅ Slack已连接:', data.connection?.team || 'Unknown team')
+      } else {
+        setSlackStatus('disconnected')
+        setSlackConnected(false)
+        console.log('❌ Slack未连接:', data.message)
+      }
+    } catch (error) {
+      console.error('Error checking Slack status:', error)
+      setSlackStatus('disconnected')
+      setSlackConnected(false)
+    }
+  }
+
+  // 测试Slack消息
+  const handleTestSlackMessage = async () => {
+    try {
+      const response = await fetch('/api/test/slack-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contextId: contextId,
+          message: `📢 测试消息：这是一条来自Slack的模拟消息！时间：${new Date().toLocaleString('zh-CN')}`,
+          author: 'AI Brain Bot',
+          channel: 'ai-testing'
+        }),
+      })
+
+      if (response.ok) {
+        console.log('Test Slack message sent successfully')
+      } else {
+        console.error('Failed to send test message')
+      }
+    } catch (error) {
+      console.error('Error sending test message:', error)
+    }
+  }
+
+  // 自动滚动到底部
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // 当消息更新时自动滚动
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, isSending])
 
   // 检查认证状态
   useEffect(() => {
@@ -71,6 +273,73 @@ export default function ContextDashboardPage() {
     }
   }, [contextId, user, router])
 
+  // Slack实时消息订阅
+  useEffect(() => {
+    if (!contextId) return
+
+    const supabase = createClient()
+    
+    // 订阅Slack消息广播
+    const channel = supabase
+      .channel(`context-${contextId}`)
+      .on('broadcast', { event: 'slack_message_received' }, (payload) => {
+        const slackMessage = payload.payload
+        console.log('Received Slack message:', slackMessage)
+        
+        // 添加到消息列表
+        setMessages(prev => [...prev, {
+          id: slackMessage.id,
+          role: 'assistant' as const,
+          content: slackMessage.content || slackMessage.text || 'Slack消息',
+          source: 'slack',
+          author: {
+            name: slackMessage.metadata?.user_name || 'Slack User',
+            avatar: slackMessage.metadata?.avatar || ''
+          },
+          channel: slackMessage.metadata?.channel_name || 'channel',
+          timestamp: new Date(slackMessage.created_at || Date.now()),
+          metadata: {
+            channelId: slackMessage.metadata?.channel_id,
+            messageId: slackMessage.metadata?.timestamp
+          }
+        }])
+      })
+      .subscribe()
+
+    console.log('Subscribed to Slack messages for context:', contextId)
+
+    return () => {
+      console.log('Unsubscribing from Slack messages')
+      supabase.removeChannel(channel)
+    }
+  }, [contextId])
+
+  // 检查Slack连接状态
+  useEffect(() => {
+    if (contextId) {
+      checkSlackStatus()
+    }
+  }, [contextId])
+
+  // 处理URL参数（安装成功/失败）
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('slack_success') === 'true') {
+      const isDemoMode = urlParams.get('demo') === 'true'
+      
+      // 设置状态
+      setIsDemo(isDemoMode)
+      setShowSuccessToast(true)
+      
+      // Slack安装成功，重新检查状态
+      setTimeout(() => {
+        checkSlackStatus(isDemoMode)
+        // 清除URL参数
+        window.history.replaceState({}, '', window.location.pathname)
+      }, 1000)
+    }
+  }, [])
+
   if (loading || loadingContext) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -86,238 +355,366 @@ export default function ContextDashboardPage() {
   const contextTypeInfo = getContextTypeInfo(context.type, language)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* 顶部导航 */}
-      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 左侧边栏 */}
+      <div className={`${isCollapsed ? 'w-16' : 'w-80'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-all duration-300`}>
+        {/* 侧边栏头部 */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push('/contexts')}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t.common.back}
-              </Button>
-              
-              <Separator orientation="vertical" className="h-6" />
-              
+            {!isCollapsed && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl">
-                  {contextTypeInfo.icon}
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">AI</span>
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold">{context.name}</h1>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {contextTypeInfo.label}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {context.description}
-                    </span>
-                  </div>
+                  <h2 className="font-semibold text-gray-900 dark:text-white text-sm">AI Brain</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{contextTypeInfo.title}</p>
                 </div>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 h-auto"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* 快速提示词 */}
+        {!isCollapsed && (
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">快速提示</h3>
+                <div className="space-y-2">
+                  {quickPrompts.map((prompt, index) => {
+                    const Icon = prompt.icon
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleQuickPrompt(prompt.prompt)}
+                        className="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:dark:bg-blue-900/20 transition-colors">
+                            <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{prompt.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{prompt.prompt}</p>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* 数据源状态 */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">数据源状态</h3>
+                <div className="space-y-2">
+                  {dataSources.map((source, index) => {
+                    const Icon = source.icon
+                    const statusIcon = source.status === 'connected' ? CheckCircle : 
+                                     source.status === 'syncing' ? Clock : 
+                                     source.status === 'disconnected' ? AlertCircle : AlertCircle
+                    const StatusIcon = statusIcon
+                    
+                    return (
+                      <div key={index} className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                            <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
+                            {source.name === 'Slack' && source.status === 'disconnected' && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">点击下方按钮连接</p>
+                            )}
+                          </div>
+                          <StatusIcon className={`w-4 h-4 ${source.color}`} />
+                        </div>
+                        
+                        {/* Slack连接控制按钮 */}
+                        {source.name === 'Slack' && (
+                          <div className="mt-2">
+                            <SlackConnectionToggle
+                              contextId={contextId}
+                              isConnected={source.status === 'connected'}
+                              onConnectionChange={(connected) => {
+                                setSlackStatus(connected ? 'connected' : 'disconnected')
+                                setSlackConnected(connected)
+                                
+                                // 重新检查状态以更新UI
+                                setTimeout(() => {
+                                  checkSlackStatus()
+                                }, 1000)
+                              }}
+                              size="sm"
+                              className="text-xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 开发测试功能 */}
+              {process.env.NODE_ENV === 'development' && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">开发测试</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestSlackMessage}
+                      className="w-full text-xs"
+                    >
+                      <Slack className="w-3 h-3 mr-2" />
+                      发送测试Slack消息
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 侧边栏底部 */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          {!isCollapsed && (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  {user?.name?.charAt(0) || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user?.name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.email || 'user@example.com'}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" className="p-1.5 h-auto">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 主对话区域 */}
+      <div className="flex-1 flex flex-col">
+        {/* 顶部标题栏 */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl">
+                {contextTypeInfo.icon}
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{context.name}</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{context.description}</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm">
+                <Search className="w-4 h-4" />
+              </Button>
               <LanguageSwitcher />
               <UserMenu />
             </div>
           </div>
         </div>
-      </header>
 
-      {/* 主要内容 */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* 概览卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">活跃度</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">98%</div>
-              <p className="text-xs text-muted-foreground">
-                较上周 +12%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">团队成员</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{context.teamMembers?.length || 1}</div>
-              <p className="text-xs text-muted-foreground">
-                +2 本月新增
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">消息数</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">1,234</div>
-              <p className="text-xs text-muted-foreground">
-                较昨天 +18
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">任务完成</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">85%</div>
-              <p className="text-xs text-muted-foreground">
-                本周目标进度
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 主要功能区域 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* AI聊天区域 */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                AI 智能助手
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 border-2 border-dashed rounded-lg">
-                <div className="text-center">
-                  <Zap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">AI助手即将上线</h3>
-                  <p className="text-muted-foreground">
-                    在这里与AI助手对话，获取项目洞察和建议
-                  </p>
-                  <Button className="mt-4">
-                    开始对话
-                  </Button>
+        {/* 对话内容区域 */}
+        <div className="flex-1 overflow-y-auto" id="messages-container">
+          <div className="max-w-4xl mx-auto">
+            <div className="p-6">
+              {/* 欢迎消息 */}
+              <div className="flex gap-4 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                  <span className="text-white font-bold text-sm">AI</span>
+                </div>
+                <div className="flex-1">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-md p-4 max-w-3xl">
+                    <p className="text-gray-800 dark:text-gray-200 mb-2">
+                      👋 你好！我是 <span className="font-semibold text-blue-600 dark:text-blue-400">{context.name}</span> 的AI智能助手。
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      我可以帮您处理工作流程中的各种任务，请告诉我您需要什么帮助？
+                    </p>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">刚刚</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* 侧边栏功能 */}
-          <div className="space-y-6">
-            {/* 团队成员 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  团队成员
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {user.name?.charAt(0) || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{user.name || '当前用户'}</p>
-                      <p className="text-xs text-muted-foreground">拥有者</p>
+              {/* 对话消息列表 */}
+              {messages.map((msg) => (
+                <div key={msg.id} className={`flex gap-4 mb-6 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                  {msg.role === 'assistant' && (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                      {msg.source === 'slack' ? (
+                        msg.author?.avatar ? (
+                          <img 
+                            src={msg.author.avatar} 
+                            alt={msg.author.name}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+                            <Slack className="w-5 h-5 text-white" />
+                          </div>
+                        )
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-bold text-sm">AI</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  {context.teamMembers?.slice(0, 3).map((member, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {member.name?.charAt(0) || 'M'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">{member.role}</p>
+                  )}
+                  <div className={`flex-1 ${msg.role === 'user' ? 'flex justify-end' : ''}`}>
+                    <div className={`rounded-2xl p-4 max-w-3xl ${
+                      msg.role === 'user' 
+                        ? 'bg-blue-600 text-white rounded-tr-md ml-auto'
+                        : msg.source === 'slack'
+                        ? 'bg-purple-50 dark:bg-purple-900/20 text-gray-800 dark:text-gray-200 rounded-tl-md border border-purple-200 dark:border-purple-800'
+                        : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-md'
+                    }`}>
+                      <div className="whitespace-pre-wrap prose prose-sm max-w-none dark:prose-invert">
+                        {msg.content.split('\n').map((line, index) => {
+                          // 处理Markdown格式
+                          if (line.startsWith('```')) {
+                            return <div key={index} className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs font-mono mt-2">{line.replace(/```/g, '')}</div>
+                          }
+                          if (line.includes('**') && line.includes('频道')) {
+                            // 处理格式化的Slack消息头部
+                            return (
+                              <div key={index} className="flex items-center gap-2 mb-2 pb-2 border-b border-purple-200 dark:border-purple-800">
+                                <Slack className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                  {line.replace(/💬|\*\*/g, '').trim()}
+                                </span>
+                              </div>
+                            )
+                          }
+                          return line ? <p key={index} className="mb-1">{line}</p> : <br key={index} />
+                        })}
                       </div>
                     </div>
-                  ))}
-                  <Button variant="outline" size="sm" className="w-full">
-                    查看全部成员
-                  </Button>
+                    <p className={`text-xs text-gray-500 dark:text-gray-400 mt-2 ${
+                      msg.role === 'user' ? 'mr-4 text-right' : 'ml-4'
+                    }`}>
+                      {msg.timestamp.toLocaleTimeString('zh-CN', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                      {msg.source === 'slack' && (
+                        <span className="ml-2 text-purple-600 dark:text-purple-400">来自Slack</span>
+                      )}
+                    </p>
+                  </div>
+                  {msg.role === 'user' && (
+                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-gray-600 dark:text-gray-300 font-medium text-sm">
+                        {user?.name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+              ))}
 
-            {/* 快速操作 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  快速操作
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    报告
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    日程
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    文档
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Settings className="w-4 h-4" />
-                    设置
-                  </Button>
+              {/* 正在输入指示器 */}
+              {isSending && (
+                <div className="flex gap-4 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
+                    <span className="text-white font-bold text-sm">AI</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-md p-4 max-w-3xl">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">AI正在思考...</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              )}
+              
+              {/* 滚动锚点 */}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
 
-        {/* 最近活动 */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              最近活动
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500 mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium">Context创建成功</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(context.createdAt).toLocaleString()}
-                  </p>
+        {/* 底部输入区域 */}
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="relative">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="输入您的问题或需求..."
+                    className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
+                    rows={1}
+                    style={{ minHeight: '44px', maxHeight: '120px' }}
+                    disabled={isSending}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSendMessage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 bg-blue-600 hover:bg-blue-700"
+                    disabled={!message.trim() || isSending}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mt-2"></div>
-                <div>
-                  <p className="text-sm font-medium">AI助手集成准备中</p>
-                  <p className="text-xs text-muted-foreground">即将开始智能对话</p>
-                </div>
+              
+              {/* 快捷建议标签 */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="text-xs text-gray-500 dark:text-gray-400">快速开始：</span>
+                {quickPrompts.slice(0, 3).map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleQuickPrompt(prompt.prompt)}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-full transition-colors"
+                  >
+                    {prompt.title}
+                  </button>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </main>
+          </div>
+        </div>
+      </div>
+
+      {/* Slack成功提示 */}
+      {showSuccessToast && (
+        <SlackSuccessToast 
+          isDemo={isDemo}
+          onClose={() => setShowSuccessToast(false)}
+        />
+      )}
     </div>
   )
 }
