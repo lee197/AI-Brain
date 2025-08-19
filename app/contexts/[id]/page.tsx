@@ -32,7 +32,9 @@ import {
   Search,
   MoreHorizontal,
   Share,
-  Copy
+  Copy,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react'
 
 export default function ContextDashboardPage() {
@@ -237,31 +239,6 @@ export default function ContextDashboardPage() {
     }
   }
 
-  // 测试Slack消息
-  const handleTestSlackMessage = async () => {
-    try {
-      const response = await fetch('/api/test/slack-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contextId: contextId,
-          message: `📢 测试消息：这是一条来自Slack的模拟消息！时间：${new Date().toLocaleString('zh-CN')}`,
-          author: 'AI Brain Bot',
-          channel: 'ai-testing'
-        }),
-      })
-
-      if (response.ok) {
-        console.log('Test Slack message sent successfully')
-      } else {
-        console.error('Failed to send test message')
-      }
-    } catch (error) {
-      console.error('Error sending test message:', error)
-    }
-  }
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -397,12 +374,12 @@ export default function ContextDashboardPage() {
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">AI</span>
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl">
+                  {contextTypeInfo.icon}
                 </div>
                 <div>
-                  <h2 className="font-semibold text-gray-900 dark:text-white text-sm">AI Brain</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{contextTypeInfo.title}</p>
+                  <h2 className="font-semibold text-gray-900 dark:text-white text-sm">{context?.name || 'Loading...'}</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{context?.description || contextTypeInfo.title}</p>
                 </div>
               </div>
             )}
@@ -412,46 +389,24 @@ export default function ContextDashboardPage() {
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="p-1.5 h-auto"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              {isCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>
 
-        {/* 快速提示词 */}
+        {/* 侧边栏内容 */}
         {!isCollapsed && (
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
+              {/* 数据源管理 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.sidebar.quickPrompts}</h3>
-                <div className="space-y-2">
-                  {quickPrompts.map((prompt, index) => {
-                    const Icon = prompt.icon
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleQuickPrompt(prompt.prompt)}
-                        className="w-full text-left p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:dark:bg-blue-900/20 transition-colors">
-                            <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{prompt.title}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{prompt.prompt}</p>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">{t.chat.sidebar.dataSourceStatus}</h3>
                 </div>
-              </div>
-
-              <Separator />
-
-              {/* 数据源状态 */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.sidebar.dataSourceStatus}</h3>
                 <div className="space-y-2">
                   {dataSources.map((source, index) => {
                     const Icon = source.icon
@@ -461,64 +416,54 @@ export default function ContextDashboardPage() {
                     const StatusIcon = statusIcon
                     
                     return (
-                      <div key={index} className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <div 
+                        key={index} 
+                        className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                        onClick={() => {
+                          if (source.name === 'Slack') {
+                            router.push(`/contexts/${contextId}/settings?tab=configure&source=slack`)
+                          } else {
+                            router.push(`/contexts/${contextId}/settings?tab=overview`)
+                          }
+                        }}
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                            <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:dark:bg-blue-900/20 transition-colors">
+                            <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
-                            {source.name === 'Slack' && source.status === 'disconnected' && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{t.chat.sidebar.slackConnectionClick}</p>
-                            )}
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {source.status === 'connected' ? 
+                                (language === 'zh' ? '已连接' : 'Connected') :
+                                source.status === 'syncing' ? 
+                                (language === 'zh' ? '同步中' : 'Syncing') :
+                                (language === 'zh' ? '点击配置' : 'Click to configure')
+                              }
+                            </p>
                           </div>
-                          <StatusIcon className={`w-4 h-4 ${source.color}`} />
+                          <div className="flex items-center gap-1">
+                            <StatusIcon className={`w-4 h-4 ${source.color}`} />
+                            <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+                          </div>
                         </div>
-                        
-                        {/* Slack连接控制按钮 */}
-                        {source.name === 'Slack' && (
-                          <div className="mt-2">
-                            <SlackConnectionToggle
-                              contextId={contextId}
-                              isConnected={source.status === 'connected'}
-                              onConnectionChange={(connected) => {
-                                setSlackStatus(connected ? 'connected' : 'disconnected')
-                                setSlackConnected(connected)
-                                
-                                // 重新检查状态以更新UI
-                                setTimeout(() => {
-                                  checkSlackStatus()
-                                }, 1000)
-                              }}
-                              size="sm"
-                              className="text-xs"
-                            />
-                          </div>
-                        )}
                       </div>
                     )
                   })}
                 </div>
+                
+                {/* 管理数据源按钮 - 显眼位置 */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/contexts/${contextId}/settings?tab=overview`)}
+                  className="w-full mt-3 text-sm font-medium border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400 transition-colors"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  {language === 'zh' ? '管理数据源' : 'Manage Data Sources'}
+                </Button>
               </div>
 
-              {/* 开发测试功能 */}
-              {process.env.NODE_ENV === 'development' && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.development.devTest}</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleTestSlackMessage}
-                      className="w-full text-xs"
-                    >
-                      <Slack className="w-3 h-3 mr-2" />
-                      {t.chat.development.sendTestSlackMessage}
-                    </Button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         )}
@@ -550,35 +495,6 @@ export default function ContextDashboardPage() {
 
       {/* 主对话区域 */}
       <div className="flex-1 flex flex-col">
-        {/* 顶部标题栏 */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl">
-                {contextTypeInfo.icon}
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{context.name}</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{context.description}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm">
-                <Search className="w-4 h-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => router.push(`/contexts/${contextId}/settings`)}
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-              <LanguageSwitcher />
-              <UserMenu />
-            </div>
-          </div>
-        </div>
 
         {/* 对话内容区域 */}
         <div className="flex-1 overflow-y-auto" id="messages-container">
@@ -756,18 +672,24 @@ export default function ContextDashboardPage() {
                 </div>
               </div>
               
-              {/* 快捷建议标签 */}
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{t.chat.input.quickStart}</span>
-                {quickPrompts.slice(0, 3).map((prompt, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleQuickPrompt(prompt.prompt)}
-                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs rounded-full transition-colors"
-                  >
-                    {prompt.title}
-                  </button>
-                ))}
+              {/* Quick Prompts 快速提示词 - 紧凑版 */}
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {quickPrompts.map((prompt, index) => {
+                    const Icon = prompt.icon
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleQuickPrompt(prompt.prompt)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 text-xs rounded-md transition-colors"
+                        title={prompt.prompt}
+                      >
+                        <Icon className="w-3 h-3" />
+                        <span className="font-medium">{prompt.title}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>

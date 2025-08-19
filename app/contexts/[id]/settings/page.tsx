@@ -279,6 +279,28 @@ export default function ContextSettingsPage() {
     navigator.clipboard.writeText(url)
   }
 
+  // 处理URL参数
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      
+      // 设置初始标签页
+      const tab = urlParams.get('tab')
+      if (tab && ['overview', 'configure', 'monitoring'].includes(tab)) {
+        setActiveTab(tab)
+      }
+      
+      // 设置选中的数据源
+      const source = urlParams.get('source')
+      if (source && ['slack', 'github', 'jira'].includes(source)) {
+        setSelectedSource(source as DataSourceType)
+        if (tab === 'configure') {
+          setActiveTab('configure')
+        }
+      }
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
