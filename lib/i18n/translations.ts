@@ -445,6 +445,87 @@ export const translations = {
       notLoggedIn: "未登录",
       login: "登录",
     },
+    // 聊天界面
+    chat: {
+      quickPrompts: {
+        todaySchedule: "今日安排",
+        todaySchedulePrompt: "帮我查看今天的会议安排和待办事项",
+        createTask: "创建任务", 
+        createTaskPrompt: "创建一个新的Jira任务，标题是[描述任务]",
+        projectStatus: "项目状态",
+        projectStatusPrompt: "生成本周项目进度报告",
+        teamCollaboration: "团队协作",
+        teamCollaborationPrompt: "通知团队成员关于[具体事项]",
+        codeReview: "代码审查",
+        codeReviewPrompt: "检查待审核的Pull Request",
+        dataAnalysis: "数据分析",
+        dataAnalysisPrompt: "分析最近的团队表现数据"
+      },
+      sidebar: {
+        aiAssistantGreeting: "你好！我是你的 AI Brain 智能助手。我已经连接到您的企业工具，可以帮您处理工作流程中的各种任务，请告诉我您需要什么帮助？",
+        quickPrompts: "快速提示",
+        dataSourceStatus: "数据源状态",
+        slackConnectionClick: "点击下方按钮连接"
+      },
+      messages: {
+        aiGreeting: "你好！我是 {contextName} 的AI智能助手。",
+        aiGreetingDesc: "我可以帮您处理工作流程中的各种任务，请告诉我您需要什么帮助？",
+        justNow: "刚刚",
+        aiThinking: "AI正在思考...",
+        fromSlack: "来自Slack",
+        shareToSlack: "分享到Slack"
+      },
+      input: {
+        placeholder: "输入您的问题或需求...",
+        quickStart: "快速开始："
+      },
+      development: {
+        devTest: "开发测试",
+        sendTestSlackMessage: "发送测试Slack消息"
+      }
+    },
+    // Slack 集成
+    slack: {
+      sendMessage: {
+        title: "发送消息到Slack",
+        description: "选择目标频道并编写消息，AI Brain将代表您发送到Slack。",
+        selectChannel: "选择目标频道",
+        selectChannelPlaceholder: "选择要发送消息的频道",
+        messageContent: "消息内容",
+        messageContentPlaceholder: "输入要发送到Slack的消息...",
+        messageHistory: "消息历史",
+        hideHistory: "隐藏历史",
+        messagePreview: "消息预览",
+        markdownSupported: "支持Markdown格式",
+        characters: "字符",
+        justNow: "刚刚",
+        noMessages: "暂无发送记录",
+        showingRecords: "显示最近10条记录，共{count}条",
+        success: "成功",
+        failed: "失败",
+        error: "错误: ",
+        sendSuccess: "发送成功",
+        sendFailed: "发送失败",
+        sending: "发送中...",
+        sendMessage: "发送消息",
+        cancel: "取消",
+        reload: "重新加载",
+        members: "成员",
+        noChannels: "无可用频道",
+        noChannelsDesc: "Bot未加入任何频道，或者没有选择监听的频道",
+        loadingChannels: "加载频道列表...",
+        errors: {
+          selectChannelAndMessage: "请选择频道并输入消息内容",
+          failedToGetChannels: "获取频道列表失败",
+          networkError: "网络错误，请稍后重试",
+          botNotInChannel: "Bot未加入 #{channel} 频道，请先邀请Bot",
+          failedToSendMessage: "发送消息失败"
+        },
+        success: {
+          messageSentTo: "消息已成功发送到 #{channel}"
+        }
+      }
+    },
   },
   en: {
     // Common
@@ -890,6 +971,87 @@ export const translations = {
       logout: "Logout",
       notLoggedIn: "Not logged in",
       login: "Login",
+    },
+    // Chat Interface
+    chat: {
+      quickPrompts: {
+        todaySchedule: "Today's Schedule",
+        todaySchedulePrompt: "Help me check today's meeting schedule and to-do items",
+        createTask: "Create Task",
+        createTaskPrompt: "Create a new Jira task with title [describe task]",
+        projectStatus: "Project Status", 
+        projectStatusPrompt: "Generate this week's project progress report",
+        teamCollaboration: "Team Collaboration",
+        teamCollaborationPrompt: "Notify team members about [specific matter]",
+        codeReview: "Code Review",
+        codeReviewPrompt: "Check pending Pull Requests for review",
+        dataAnalysis: "Data Analysis",
+        dataAnalysisPrompt: "Analyze recent team performance data"
+      },
+      sidebar: {
+        aiAssistantGreeting: "Hello! I'm your AI Brain intelligent assistant. I'm connected to your enterprise tools and can help you with various tasks in your workflow. What can I help you with?",
+        quickPrompts: "Quick Prompts",
+        dataSourceStatus: "Data Source Status", 
+        slackConnectionClick: "Click button below to connect"
+      },
+      messages: {
+        aiGreeting: "Hello! I am the AI assistant for {contextName}.",
+        aiGreetingDesc: "I can help you with various tasks in your workflow. What can I help you with?",
+        justNow: "Just now",
+        aiThinking: "AI is thinking...",
+        fromSlack: "From Slack",
+        shareToSlack: "Share to Slack"
+      },
+      input: {
+        placeholder: "Enter your questions or needs...",
+        quickStart: "Quick start:"
+      },
+      development: {
+        devTest: "Dev Test",
+        sendTestSlackMessage: "Send Test Slack Message"
+      }
+    },
+    // Slack Integration
+    slack: {
+      sendMessage: {
+        title: "Send Message to Slack",
+        description: "Select target channel and compose message, AI Brain will send it to Slack on your behalf.",
+        selectChannel: "Select Target Channel",
+        selectChannelPlaceholder: "Select channel to send message",
+        messageContent: "Message Content",
+        messageContentPlaceholder: "Enter message to send to Slack...",
+        messageHistory: "Message History",
+        hideHistory: "Hide History",
+        messagePreview: "Message Preview",
+        markdownSupported: "Markdown supported",
+        characters: "characters",
+        justNow: "Just now",
+        noMessages: "No messages sent yet",
+        showingRecords: "Showing last 10 of {count} records",
+        success: "Success",
+        failed: "Failed",
+        error: "Error: ",
+        sendSuccess: "Send Success",
+        sendFailed: "Send Failed", 
+        sending: "Sending...",
+        sendMessage: "Send Message",
+        cancel: "Cancel",
+        reload: "Reload",
+        members: "members",
+        noChannels: "No Available Channels",
+        noChannelsDesc: "Bot has not joined any channels, or no channels selected for monitoring",
+        loadingChannels: "Loading channels...",
+        errors: {
+          selectChannelAndMessage: "Please select a channel and enter message content",
+          failedToGetChannels: "Failed to get channel list",
+          networkError: "Network error, please try again later",
+          botNotInChannel: "Bot not in #{channel} channel, please invite Bot first",
+          failedToSendMessage: "Failed to send message"
+        },
+        success: {
+          messageSentTo: "Message successfully sent to #{channel}"
+        }
+      }
     },
   },
 } as const

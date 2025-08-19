@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { getChannelConfig } from '@/lib/slack/channel-config'
 import { saveMessageHistory, getMessageHistory, SlackMessageHistory } from '@/lib/slack/message-history'
+import { useLanguage } from '@/lib/i18n/language-context'
 import { 
   Dialog,
   DialogContent,
@@ -67,6 +68,7 @@ export function SlackSendMessage({
   defaultMessage = '',
   defaultChannelId = ''
 }: SlackSendMessageProps) {
+  const { t, language } = useLanguage()
   const [channels, setChannels] = useState<SlackChannel[]>([])
   const [selectedChannelId, setSelectedChannelId] = useState<string>(defaultChannelId)
   const [message, setMessage] = useState<string>(defaultMessage)
@@ -105,10 +107,10 @@ export function SlackSendMessage({
           setSelectedChannelId(availableChannels[0].id)
         }
       } else {
-        setError(data.error || '获取频道列表失败')
+        setError(data.error || t.slack.sendMessage.errors.failedToGetChannels)
       }
     } catch (error) {
-      setError('网络错误，请稍后重试')
+      setError(t.slack.sendMessage.errors.networkError)
       console.error('Load channels error:', error)
     } finally {
       setLoading(false)
@@ -124,7 +126,7 @@ export function SlackSendMessage({
   // 发送消息到Slack
   const handleSendMessage = async () => {
     if (!selectedChannelId || !message.trim()) {
-      setError('请选择频道并输入消息内容')
+      setError(t.slack.sendMessage.errors.selectChannelAndMessage)
       return
     }
     
@@ -148,14 +150,15 @@ export function SlackSendMessage({
       const data = await response.json()
       
       if (data.success) {
-        setSuccess(`消息已成功发送到 #${getChannelName(selectedChannelId)}`)
+        const channelName = getChannelName(selectedChannelId)
+        setSuccess(t.slack.sendMessage.success.messageSentTo.replace('{channel}', channelName))
         onMessageSent?.(data.data)
         
         // 保存到历史记录
         saveMessageHistory(contextId, {
           content: message.trim(),
           channelId: selectedChannelId,
-          channelName: getChannelName(selectedChannelId),
+          channelName: channelName,
           sentAt: Date.now(),
           messageTs: data.data?.messageTs,
           permalink: data.data?.permalink,
@@ -175,9 +178,10 @@ export function SlackSendMessage({
         }, 3000)
       } else {
         if (data.needsInvite) {
-          setError(`Bot未加入 #${getChannelName(selectedChannelId)} 频道，请先邀请Bot`)
+          const channelName = getChannelName(selectedChannelId)
+          setError(t.slack.sendMessage.errors.botNotInChannel.replace('{channel}', channelName))
         } else {
-          setError(data.error || '发送消息失败')
+          setError(data.error || t.slack.sendMessage.errors.failedToSendMessage)
         }
         
         // 保存失败记录
@@ -187,14 +191,14 @@ export function SlackSendMessage({
           channelName: getChannelName(selectedChannelId),
           sentAt: Date.now(),
           status: 'failed',
-          error: data.error || '发送失败'
+          error: data.error || t.slack.sendMessage.errors.failedToSendMessage
         })
         
         // 刷新历史记录
         loadMessageHistory()
       }
     } catch (error) {
-      const errorMessage = '网络错误，请稍后重试'
+      const errorMessage = t.slack.sendMessage.errors.networkError
       setError(errorMessage)
       console.error('Send message error:', error)
       
@@ -226,7 +230,7 @@ export function SlackSendMessage({
 
   // 格式化时间
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN', {
+    return new Date(timestamp).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -252,7 +256,7 @@ export function SlackSendMessage({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Slack className="w-5 h-5 text-purple-600" />
-              <DialogTitle>发送消息到Slack</DialogTitle>
+              <DialogTitle>{t.slack.sendMessage.title}</DialogTitle>
             </div>
             <Button
               variant="outline"
@@ -261,7 +265,7 @@ export function SlackSendMessage({
               className="flex items-center gap-2"
             >
               <History className="w-4 h-4" />
-              {showHistory ? '隐藏历史' : '消息历史'}
+              {showHistory ? t.slack.sendMessage.hideHistory : t.slack.sendMessage.messageHistory}
               {messageHistory.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {messageHistory.length}
@@ -270,7 +274,7 @@ export function SlackSendMessage({
             </Button>
           </div>
           <DialogDescription>
-            选择目标频道并编写消息，AI Brain将代表您发送到Slack。
+            {t.slack.sendMessage.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -279,7 +283,9 @@ export function SlackSendMessage({
           {showHistory && (
             <div className="border border-gray-200 rounded-lg p-4 max-h-60 overflow-y-auto bg-gray-50">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-gray-900">消息发送历史</h4>
+                <h4 className="text-sm font-medium text-gray-900">
+                  {t.slack.sendMessage.messageHistory}
+                </h4>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -292,7 +298,7 @@ export function SlackSendMessage({
               
               {messageHistory.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
-                  暂无发送记录
+                  {t.slack.sendMessage.noMessages}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -311,7 +317,7 @@ export function SlackSendMessage({
                             variant={record.status === 'success' ? 'outline' : 'destructive'} 
                             className="text-xs"
                           >
-                            {record.status === 'success' ? '成功' : '失败'}
+                            {record.status === 'success' ? t.slack.sendMessage.success : t.slack.sendMessage.failed}
                           </Badge>
                         </div>
                         <p className="text-gray-600 truncate mb-1">
@@ -322,7 +328,7 @@ export function SlackSendMessage({
                         </p>
                         {record.error && (
                           <p className="text-red-600 mt-1">
-                            错误: {record.error}
+                            {t.slack.sendMessage.error}{record.error}
                           </p>
                         )}
                       </div>
@@ -343,7 +349,7 @@ export function SlackSendMessage({
                   {messageHistory.length > 10 && (
                     <div className="text-center pt-2">
                       <span className="text-xs text-gray-500">
-                        显示最近10条记录，共{messageHistory.length}条
+                        {t.slack.sendMessage.showingRecords.replace('{count}', messageHistory.length.toString())}
                       </span>
                     </div>
                   )}
@@ -355,7 +361,7 @@ export function SlackSendMessage({
           {loading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
-              <span className="ml-2 text-sm text-gray-600">加载频道列表...</span>
+              <span className="ml-2 text-sm text-gray-600">{t.slack.sendMessage.loadingChannels}</span>
             </div>
           )}
 
@@ -363,7 +369,7 @@ export function SlackSendMessage({
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2 text-red-800">
                 <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm font-medium">发送失败</span>
+                <span className="text-sm font-medium">{t.slack.sendMessage.sendFailed}</span>
               </div>
               <p className="text-sm text-red-600 mt-1">{error}</p>
             </div>
@@ -373,7 +379,7 @@ export function SlackSendMessage({
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 text-green-800">
                 <CheckCircle2 className="w-4 h-4" />
-                <span className="text-sm font-medium">发送成功</span>
+                <span className="text-sm font-medium">{t.slack.sendMessage.sendSuccess}</span>
               </div>
               <p className="text-sm text-green-600 mt-1">{success}</p>
             </div>
@@ -384,11 +390,11 @@ export function SlackSendMessage({
               {/* 频道选择 */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-900">
-                  选择目标频道
+                  {t.slack.sendMessage.selectChannel}
                 </label>
                 <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="选择要发送消息的频道" />
+                    <SelectValue placeholder={t.slack.sendMessage.selectChannelPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {channels.map(channel => (
@@ -424,7 +430,7 @@ export function SlackSendMessage({
                       </span>
                       <Badge variant="outline" className="text-xs">
                         <Users className="w-3 h-3 mr-1" />
-                        {selectedChannel.memberCount} 成员
+                        {selectedChannel.memberCount} {t.slack.sendMessage.members}
                       </Badge>
                     </div>
                     {selectedChannel.topic && (
@@ -441,18 +447,18 @@ export function SlackSendMessage({
               {/* 消息编写 */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-900">
-                  消息内容
+                  {t.slack.sendMessage.messageContent}
                 </label>
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="输入要发送到Slack的消息..."
+                  placeholder={t.slack.sendMessage.messageContentPlaceholder}
                   className="min-h-[120px] resize-none"
                   disabled={sending}
                 />
                 <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span>支持Markdown格式</span>
-                  <span>{message.length}/4000 字符</span>
+                  <span>{t.slack.sendMessage.markdownSupported}</span>
+                  <span>{message.length}/4000 {t.slack.sendMessage.characters}</span>
                 </div>
               </div>
 
@@ -462,7 +468,7 @@ export function SlackSendMessage({
                   <Separator />
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-900">
-                      消息预览
+                      {t.slack.sendMessage.messagePreview}
                     </label>
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
@@ -470,7 +476,9 @@ export function SlackSendMessage({
                           <MessageSquare className="w-3 h-3 text-white" />
                         </div>
                         <span className="text-sm font-medium text-blue-900">AI Brain</span>
-                        <span className="text-xs text-blue-600">刚刚</span>
+                        <span className="text-xs text-blue-600">
+                          {t.slack.sendMessage.justNow}
+                        </span>
                       </div>
                       <p className="text-sm text-blue-800 whitespace-pre-wrap">
                         {message}
@@ -485,15 +493,15 @@ export function SlackSendMessage({
           {!loading && channels.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <Slack className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="font-medium">无可用频道</p>
-              <p className="text-sm">Bot未加入任何频道，或者没有选择监听的频道</p>
+              <p className="font-medium">{t.slack.sendMessage.noChannels}</p>
+              <p className="text-sm">{t.slack.sendMessage.noChannelsDesc}</p>
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={loadChannels}
                 className="mt-3"
               >
-                重新加载
+                {t.slack.sendMessage.reload}
               </Button>
             </div>
           )}
@@ -501,7 +509,7 @@ export function SlackSendMessage({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={sending}>
-            取消
+            {t.slack.sendMessage.cancel}
           </Button>
           <Button 
             onClick={handleSendMessage} 
@@ -511,12 +519,12 @@ export function SlackSendMessage({
             {sending ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                发送中...
+                {t.slack.sendMessage.sending}
               </>
             ) : (
               <>
                 <Send className="w-4 h-4 mr-2" />
-                发送消息
+                {t.slack.sendMessage.sendMessage}
               </>
             )}
           </Button>

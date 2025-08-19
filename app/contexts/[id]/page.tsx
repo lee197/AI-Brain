@@ -93,12 +93,12 @@ export default function ContextDashboardPage() {
 
   // Quick prompt suggestions
   const quickPrompts = [
-    { title: '今日安排', prompt: '帮我查看今天的会议安排和待办事项', icon: Clock },
-    { title: '创建任务', prompt: '创建一个新的Jira任务，标题是[描述任务]', icon: Plus },
-    { title: '项目状态', prompt: '生成本周项目进度报告', icon: BarChart3 },
-    { title: '团队协作', prompt: '通知团队成员关于[具体事项]', icon: MessageSquare },
-    { title: '代码审查', prompt: '检查待审核的Pull Request', icon: Github },
-    { title: '数据分析', prompt: '分析最近的团队表现数据', icon: BarChart3 },
+    { title: t.chat.quickPrompts.todaySchedule, prompt: t.chat.quickPrompts.todaySchedulePrompt, icon: Clock },
+    { title: t.chat.quickPrompts.createTask, prompt: t.chat.quickPrompts.createTaskPrompt, icon: Plus },
+    { title: t.chat.quickPrompts.projectStatus, prompt: t.chat.quickPrompts.projectStatusPrompt, icon: BarChart3 },
+    { title: t.chat.quickPrompts.teamCollaboration, prompt: t.chat.quickPrompts.teamCollaborationPrompt, icon: MessageSquare },
+    { title: t.chat.quickPrompts.codeReview, prompt: t.chat.quickPrompts.codeReviewPrompt, icon: Github },
+    { title: t.chat.quickPrompts.dataAnalysis, prompt: t.chat.quickPrompts.dataAnalysisPrompt, icon: BarChart3 },
   ]
 
   // 发送消息功能
@@ -422,7 +422,7 @@ export default function ContextDashboardPage() {
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">快速提示</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.sidebar.quickPrompts}</h3>
                 <div className="space-y-2">
                   {quickPrompts.map((prompt, index) => {
                     const Icon = prompt.icon
@@ -451,7 +451,7 @@ export default function ContextDashboardPage() {
 
               {/* 数据源状态 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">数据源状态</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.sidebar.dataSourceStatus}</h3>
                 <div className="space-y-2">
                   {dataSources.map((source, index) => {
                     const Icon = source.icon
@@ -469,7 +469,7 @@ export default function ContextDashboardPage() {
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
                             {source.name === 'Slack' && source.status === 'disconnected' && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">点击下方按钮连接</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{t.chat.sidebar.slackConnectionClick}</p>
                             )}
                           </div>
                           <StatusIcon className={`w-4 h-4 ${source.color}`} />
@@ -506,7 +506,7 @@ export default function ContextDashboardPage() {
                 <>
                   <Separator />
                   <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">开发测试</h3>
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t.chat.development.devTest}</h3>
                     <Button
                       variant="outline"
                       size="sm"
@@ -514,7 +514,7 @@ export default function ContextDashboardPage() {
                       className="w-full text-xs"
                     >
                       <Slack className="w-3 h-3 mr-2" />
-                      发送测试Slack消息
+                      {t.chat.development.sendTestSlackMessage}
                     </Button>
                   </div>
                 </>
@@ -567,6 +567,13 @@ export default function ContextDashboardPage() {
               <Button variant="ghost" size="sm">
                 <Search className="w-4 h-4" />
               </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => router.push(`/contexts/${contextId}/settings`)}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
               <LanguageSwitcher />
               <UserMenu />
             </div>
@@ -585,13 +592,13 @@ export default function ContextDashboardPage() {
                 <div className="flex-1">
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-md p-4 max-w-3xl">
                     <p className="text-gray-800 dark:text-gray-200 mb-2">
-                      👋 你好！我是 <span className="font-semibold text-blue-600 dark:text-blue-400">{context.name}</span> 的AI智能助手。
+                      👋 {t.chat.messages.aiGreeting.replace('{contextName}', context.name)}
                     </p>
                     <p className="text-gray-600 dark:text-gray-400 text-sm">
-                      我可以帮您处理工作流程中的各种任务，请告诉我您需要什么帮助？
+                      {t.chat.messages.aiGreetingDesc}
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">刚刚</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-4">{t.chat.messages.justNow}</p>
                 </div>
               </div>
 
@@ -654,7 +661,7 @@ export default function ContextDashboardPage() {
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatTime(msg.timestamp)}
                         {msg.source === 'slack' && (
-                          <span className="ml-2 text-purple-600 dark:text-purple-400">来自Slack</span>
+                          <span className="ml-2 text-purple-600 dark:text-purple-400">{t.chat.messages.fromSlack}</span>
                         )}
                       </p>
                       
@@ -678,7 +685,7 @@ export default function ContextDashboardPage() {
                               onClick={() => shareToSlack(msg)}
                             >
                               <Share className="w-3 h-3" />
-                              <span className="ml-1">分享到Slack</span>
+                              <span className="ml-1">{t.chat.messages.shareToSlack}</span>
                             </Button>
                           )}
                         </div>
@@ -709,7 +716,7 @@ export default function ContextDashboardPage() {
                           <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                           <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">AI正在思考...</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">{t.chat.messages.aiThinking}</span>
                       </div>
                     </div>
                   </div>
@@ -732,7 +739,7 @@ export default function ContextDashboardPage() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="输入您的问题或需求..."
+                    placeholder={t.chat.input.placeholder}
                     className="w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 resize-none"
                     rows={1}
                     style={{ minHeight: '44px', maxHeight: '120px' }}
@@ -751,7 +758,7 @@ export default function ContextDashboardPage() {
               
               {/* 快捷建议标签 */}
               <div className="flex flex-wrap gap-2 mt-3">
-                <span className="text-xs text-gray-500 dark:text-gray-400">快速开始：</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{t.chat.input.quickStart}</span>
                 {quickPrompts.slice(0, 3).map((prompt, index) => (
                   <button
                     key={index}
