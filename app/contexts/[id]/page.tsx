@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AddToSlackButton } from '@/components/slack/add-to-slack-button'
 import { SlackSuccessToast } from '@/components/slack/slack-success-toast'
 import { SlackConnectionToggle } from '@/components/slack/slack-connection-toggle'
+import { SlackSendMessage } from '@/components/slack/slack-send-message'
 import { 
   MessageSquare,
   BarChart3,
@@ -29,7 +30,9 @@ import {
   AlertCircle,
   Clock,
   Search,
-  MoreHorizontal
+  MoreHorizontal,
+  Share,
+  Copy
 } from 'lucide-react'
 
 export default function ContextDashboardPage() {
@@ -59,6 +62,13 @@ export default function ContextDashboardPage() {
   }>>([])
   const [isSending, setIsSending] = useState(false)
   const [slackConnected, setSlackConnected] = useState(false)
+  const [showSlackSend, setShowSlackSend] = useState(false)
+  const [selectedMessage, setSelectedMessage] = useState<{
+    id: string
+    role: 'user' | 'assistant'
+    content: string
+    timestamp: Date
+  } | null>(null)
   const [slackStatus, setSlackStatus] = useState<'loading' | 'connected' | 'disconnected'>('loading')
   const [showSuccessToast, setShowSuccessToast] = useState(false)
   const [isDemo, setIsDemo] = useState(false)
@@ -178,6 +188,30 @@ export default function ContextDashboardPage() {
   // 填充快速提示词
   const handleQuickPrompt = (prompt: string) => {
     setMessage(prompt)
+  }
+
+  // 分享消息到Slack
+  const shareToSlack = (message: {
+    id: string
+    role: 'user' | 'assistant'
+    content: string
+    timestamp: Date
+  }) => {
+    setSelectedMessage(message)
+    setShowSlackSend(true)
+  }
+
+  // 复制消息内容
+  const copyMessage = (content: string) => {
+    navigator.clipboard.writeText(content)
+  }
+
+  // 格式化时间
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
   }
 
   // 检查Slack连接状态
@@ -563,7 +597,7 @@ export default function ContextDashboardPage() {
 
               {/* 对话消息列表 */}
               {messages.map((msg) => (
-                <div key={msg.id} className={`flex gap-4 mb-6 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                <div key={msg.id} className={`group flex gap-4 mb-6 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                   {msg.role === 'assistant' && (
                     <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm flex-shrink-0">
                       {msg.source === 'slack' ? (
@@ -614,17 +648,42 @@ export default function ContextDashboardPage() {
                         })}
                       </div>
                     </div>
-                    <p className={`text-xs text-gray-500 dark:text-gray-400 mt-2 ${
-                      msg.role === 'user' ? 'mr-4 text-right' : 'ml-4'
+                    <div className={`flex items-center justify-between mt-2 ${
+                      msg.role === 'user' ? 'mr-4 flex-row-reverse' : 'ml-4'
                     }`}>
-                      {msg.timestamp.toLocaleTimeString('zh-CN', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                      {msg.source === 'slack' && (
-                        <span className="ml-2 text-purple-600 dark:text-purple-400">来自Slack</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatTime(msg.timestamp)}
+                        {msg.source === 'slack' && (
+                          <span className="ml-2 text-purple-600 dark:text-purple-400">来自Slack</span>
+                        )}
+                      </p>
+                      
+                      {/* 消息操作按钮 */}
+                      {msg.role === 'assistant' && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => copyMessage(msg.content)}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          
+                          {slackConnected && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs hover:bg-purple-100 dark:hover:bg-purple-900/20"
+                              onClick={() => shareToSlack(msg)}
+                            >
+                              <Share className="w-3 h-3" />
+                              <span className="ml-1">分享到Slack</span>
+                            </Button>
+                          )}
+                        </div>
                       )}
-                    </p>
+                    </div>
                   </div>
                   {msg.role === 'user' && (
                     <div className="w-10 h-10 bg-gray-100 dark:bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -715,6 +774,20 @@ export default function ContextDashboardPage() {
           onClose={() => setShowSuccessToast(false)}
         />
       )}
+
+      {/* Slack发送消息对话框 */}
+      <SlackSendMessage
+        isOpen={showSlackSend}
+        onClose={() => {
+          setShowSlackSend(false)
+          setSelectedMessage(null)
+        }}
+        contextId={contextId}
+        defaultMessage={selectedMessage?.content || ''}
+        onMessageSent={(result) => {
+          console.log('消息已发送到Slack:', result)
+        }}
+      />
     </div>
   )
 }

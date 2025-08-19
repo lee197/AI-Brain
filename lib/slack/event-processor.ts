@@ -1,6 +1,37 @@
 import { createClient } from '@/lib/supabase/server'
 import { SlackWebApi } from '@/lib/slack/api-client'
 
+// 服务端频道配置管理（简化版本）
+// 在生产环境中，这应该存储在数据库中
+let serverChannelConfig: { [contextId: string]: string[] } = {}
+
+/**
+ * 设置服务端频道配置
+ * @param contextId Context ID
+ * @param channels 频道ID列表
+ */
+export function setServerChannelConfig(contextId: string, channels: string[]) {
+  serverChannelConfig[contextId] = channels
+  console.log(`🔧 更新服务端频道配置 (Context: ${contextId}, 频道: ${channels.length})`)
+}
+
+/**
+ * 检查频道是否允许接收消息
+ * @param contextId Context ID
+ * @param channelId 频道ID
+ * @returns 是否允许
+ */
+function isChannelAllowed(contextId: string, channelId: string): boolean {
+  const allowedChannels = serverChannelConfig[contextId]
+  
+  // 如果没有配置，默认允许所有频道（向后兼容）
+  if (!allowedChannels || allowedChannels.length === 0) {
+    return true
+  }
+  
+  return allowedChannels.includes(channelId)
+}
+
 // 消息格式化接口
 interface MessageFormatOptions {
   userName: string
@@ -129,6 +160,12 @@ async function handleSlackMessage(event: SlackMessageEvent) {
     const contextId = await getDefaultContextId()
     if (!contextId) {
       console.log('No context available, creating a basic conversation')
+      return
+    }
+
+    // 检查这个频道是否在用户选择的频道列表中
+    if (!isChannelAllowed(contextId, event.channel)) {
+      console.log(`频道 ${event.channel} 未在监听列表中，跳过消息处理`)
       return
     }
 

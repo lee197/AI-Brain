@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Slack, Loader2, Power, PowerOff } from 'lucide-react'
+import { Slack, Loader2, Power, PowerOff, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SlackChannelSelector } from './slack-channel-selector'
 
 interface SlackConnectionToggleProps {
   contextId: string
@@ -22,6 +23,7 @@ export function SlackConnectionToggle({
 }: SlackConnectionToggleProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showChannelSelector, setShowChannelSelector] = useState(false)
 
   const handleDisconnect = async () => {
     if (isLoading) return
@@ -79,6 +81,16 @@ export function SlackConnectionToggle({
         <Button
           variant="outline"
           size={size}
+          onClick={() => setShowChannelSelector(true)}
+          className="w-full"
+        >
+          <Settings className="w-4 h-4 mr-2" />
+          选择频道
+        </Button>
+        
+        <Button
+          variant="outline"
+          size={size}
           onClick={handleDisconnect}
           disabled={isLoading}
           className="w-full text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
@@ -90,9 +102,20 @@ export function SlackConnectionToggle({
           )}
           断开Slack连接
         </Button>
+        
         {error && (
           <p className="text-xs text-red-500">{error}</p>
         )}
+        
+        <SlackChannelSelector
+          isOpen={showChannelSelector}
+          onClose={() => setShowChannelSelector(false)}
+          contextId={contextId}
+          onChannelsSelected={(channels) => {
+            console.log('选择的频道:', channels)
+            // 可以在这里触发刷新或其他操作
+          }}
+        />
       </div>
     )
   }

@@ -131,7 +131,7 @@ export default function DashboardPage() {
         {/* Action Buttons */}
         <div className="text-center space-y-4">
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/chat">
+            <Link href="/contexts/e7c5aa1e-de00-4327-81dd-cfeba3030081">
               <Button size="lg" className="w-full sm:w-auto">
                 开始聊天 💬
               </Button>

@@ -100,26 +100,45 @@ export class SlackWebApi {
   }
 
   /**
-   * 发送消息到Slack频道
-   * @param channelId 频道ID
-   * @param text 消息内容
+   * 发送消息到Slack频道 (扩展版本)
+   * @param options 发送选项
    * @returns 发送结果
    */
-  async sendMessage(channelId: string, text: string) {
+  async sendMessage(options: {
+    channel: string
+    text?: string
+    blocks?: any[]
+    attachments?: any[]
+    thread_ts?: string
+    unfurl_links?: boolean
+    unfurl_media?: boolean
+  }) {
     if (!this.client) {
-      console.log('Mock: Sending message to', channelId, ':', text)
-      return { ok: true, ts: Date.now().toString() }
+      console.log('Mock: Sending message to', options.channel, ':', options.text || '[富文本消息]')
+      return { 
+        ok: true, 
+        ts: Date.now().toString(),
+        message: {
+          text: options.text,
+          permalink: `https://mock-workspace.slack.com/archives/${options.channel}/p${Date.now()}`
+        }
+      }
     }
 
     try {
       const result = await this.client.chat.postMessage({
-        channel: channelId,
-        text: text
+        channel: options.channel,
+        text: options.text || '消息', // 备用文本
+        blocks: options.blocks,
+        attachments: options.attachments,
+        thread_ts: options.thread_ts,
+        unfurl_links: options.unfurl_links ?? false,
+        unfurl_media: options.unfurl_media ?? false
       })
       
       if (!result.ok) {
         console.error('Slack API error:', result.error)
-        return { ok: false, error: result.error }
+        throw new Error(result.error || 'Unknown Slack API error')
       }
 
       return {
@@ -129,7 +148,75 @@ export class SlackWebApi {
       }
     } catch (error) {
       console.error('Error sending message:', error)
-      return { ok: false, error: error }
+      throw error
+    }
+  }
+
+  /**
+   * 发送简单文本消息 (兼容性方法)
+   * @param channelId 频道ID
+   * @param text 消息内容
+   * @returns 发送结果
+   */
+  async sendTextMessage(channelId: string, text: string) {
+    return this.sendMessage({
+      channel: channelId,
+      text: text
+    })
+  }
+
+  /**
+   * 获取Bot加入的频道列表
+   * @returns Bot已加入的频道列表
+   */
+  async getBotChannels() {
+    if (!this.client) {
+      return this.getMockBotChannels()
+    }
+
+    try {
+      // 先获取Bot的用户ID
+      const authTest = await this.client.auth.test()
+      if (!authTest.ok || !authTest.user_id) {
+        return []
+      }
+
+      // 获取Bot参与的对话
+      const result = await this.client.users.conversations({
+        user: authTest.user_id,
+        types: 'public_channel,private_channel',
+        exclude_archived: true,
+        limit: 200
+      })
+      
+      if (!result.ok || !result.channels) {
+        console.error('Slack API error:', result.error)
+        return this.getMockBotChannels()
+      }
+
+      return result.channels
+    } catch (error) {
+      console.error('Error fetching bot channels:', error)
+      return this.getMockBotChannels()
+    }
+  }
+
+  /**
+   * 检查Bot是否在特定频道中
+   * @param channelId 频道ID
+   * @returns 是否在频道中
+   */
+  async isBotInChannel(channelId: string): Promise<boolean> {
+    if (!this.client) {
+      return true // 模拟环境默认返回true
+    }
+
+    try {
+      const botChannels = await this.getBotChannels()
+      return botChannels.some(channel => channel.id === channelId)
+    } catch (error) {
+      console.error('Error checking bot channel membership:', error)
+      return false
     }
   }
 
@@ -197,19 +284,63 @@ export class SlackWebApi {
         id: 'C1234567890',
         name: 'general',
         is_private: false,
-        topic: { value: 'General discussion' }
+        topic: { value: 'General discussion' },
+        num_members: 45,
+        purpose: { value: 'Company-wide announcements and general discussion' }
       },
       {
         id: 'C0987654321',
         name: 'development',
         is_private: false,
-        topic: { value: 'Development discussion' }
+        topic: { value: 'Development discussion' },
+        num_members: 12,
+        purpose: { value: 'Development team coordination' }
       },
       {
         id: 'C5555555555',
         name: 'ai-brain',
         is_private: false,
-        topic: { value: 'AI Brain project discussion' }
+        topic: { value: 'AI Brain project discussion' },
+        num_members: 8,
+        purpose: { value: 'AI Brain project development and testing' }
+      },
+      {
+        id: 'C6666666666',
+        name: 'marketing',
+        is_private: false,
+        topic: { value: 'Marketing campaigns and strategy' },
+        num_members: 15,
+        purpose: { value: 'Marketing team collaboration' }
+      },
+      {
+        id: 'G7777777777',
+        name: 'private-team',
+        is_private: true,
+        topic: { value: 'Private team discussions' },
+        num_members: 5,
+        purpose: { value: 'Leadership team private discussions' }
+      }
+    ]
+  }
+
+  /**
+   * 模拟Bot频道列表 (开发环境使用)
+   */
+  private getMockBotChannels() {
+    return [
+      {
+        id: 'C5555555555',
+        name: 'ai-brain',
+        is_private: false,
+        topic: { value: 'AI Brain project discussion' },
+        num_members: 8
+      },
+      {
+        id: 'C0987654321', 
+        name: 'development',
+        is_private: false,
+        topic: { value: 'Development discussion' },
+        num_members: 12
       }
     ]
   }
