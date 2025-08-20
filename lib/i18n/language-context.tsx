@@ -12,26 +12,22 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('zh')
+  const [language, setLanguageState] = useState<Language>('en')
   const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    // 标记为已水合，避免 SSR/CSR 不匹配
+    // 在客户端水合化后设置正确的语言
     setIsHydrated(true)
     
-    // 从 localStorage 读取用户语言偏好
     if (typeof window !== 'undefined') {
       const savedLang = localStorage.getItem('preferredLanguage') as Language
       if (savedLang && (savedLang === 'zh' || savedLang === 'en')) {
         setLanguageState(savedLang)
       } else {
-        // 检测浏览器语言
-        const browserLang = navigator.language.toLowerCase()
-        if (browserLang.includes('zh')) {
-          setLanguageState('zh')
-        } else {
-          setLanguageState('en')
-        }
+        // Default to English
+        const defaultLang = 'en'
+        setLanguageState(defaultLang)
+        localStorage.setItem('preferredLanguage', defaultLang)
       }
     }
   }, [])
@@ -51,7 +47,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   return (
     <LanguageContext.Provider value={value}>
-      {children}
+      <div suppressHydrationWarning>
+        {children}
+      </div>
     </LanguageContext.Provider>
   )
 }

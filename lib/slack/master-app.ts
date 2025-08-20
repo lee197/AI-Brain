@@ -40,15 +40,7 @@ export function generateOneClickInstallUrl(contextId: string): string {
   
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
   
-  // 检查是否有Master App配置
-  const hasMasterConfig = MASTER_SLACK_CONFIG.clientId !== 'your-master-client-id'
-  
-  if (!hasMasterConfig) {
-    // 开发模式：返回demo安装URL
-    return `${baseUrl}/api/auth/slack/install?context_id=${contextId}&demo=true`
-  }
-  
-  // 生产模式：使用Master App OAuth
+  // 直接使用Master App OAuth，不管是否有环境变量配置
   const oauthUrl = new URL('https://slack.com/oauth/v2/authorize')
   oauthUrl.searchParams.set('client_id', MASTER_SLACK_CONFIG.clientId)
   oauthUrl.searchParams.set('scope', MASTER_SLACK_CONFIG.scopes)

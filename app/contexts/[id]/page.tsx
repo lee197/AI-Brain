@@ -418,33 +418,79 @@ export default function ContextDashboardPage() {
                     return (
                       <div 
                         key={index} 
-                        className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
-                        onClick={() => {
-                          if (source.name === 'Slack') {
-                            router.push(`/contexts/${contextId}/settings?tab=configure&source=slack`)
-                          } else {
-                            router.push(`/contexts/${contextId}/settings?tab=overview`)
-                          }
-                        }}
+                        className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 transition-all group"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                           <div className="w-8 h-8 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center group-hover:bg-blue-50 group-hover:dark:bg-blue-900/20 transition-colors">
                             <Icon className="w-4 h-4 text-gray-600 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {source.status === 'connected' ? 
-                                (language === 'zh' ? '已连接' : 'Connected') :
-                                source.status === 'syncing' ? 
-                                (language === 'zh' ? '同步中' : 'Syncing') :
-                                (language === 'zh' ? '点击配置' : 'Click to configure')
-                              }
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <StatusIcon className={`w-4 h-4 ${source.color}`} />
-                            <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">{source.name}</p>
+                              <div className="flex items-center gap-1">
+                                <StatusIcon className={`w-4 h-4 ${source.color}`} />
+                                <span className={`text-xs font-medium ${
+                                  source.status === 'connected' ? 'text-green-600 dark:text-green-400' :
+                                  source.status === 'syncing' ? 'text-yellow-600 dark:text-yellow-400' :
+                                  'text-gray-500 dark:text-gray-400'
+                                }`}>
+                                  {source.status === 'connected' ? 
+                                    (language === 'zh' ? '已连接' : 'Connected') :
+                                    source.status === 'syncing' ? 
+                                    (language === 'zh' ? '同步中' : 'Syncing') :
+                                    (language === 'zh' ? '未连接' : 'Disconnected')
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* 连接状态的详细信息 - 仅显示状态 */}
+                            {source.name === 'Slack' && source.status === 'connected' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '工作区: AI Brain Team' : 'Workspace: AI Brain Team'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '已同步 12 个频道' : '12 channels synced'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* GitHub连接状态信息 */}
+                            {source.name === 'GitHub' && source.status === 'connected' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '仓库: ai-brain/main' : 'Repository: ai-brain/main'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '监控 3 个分支' : '3 branches monitored'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Jira同步状态信息 */}
+                            {source.name === 'Jira' && source.status === 'syncing' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div>
+                                  <span>{language === 'zh' ? '正在同步项目数据...' : 'Syncing project data...'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Google Drive错误状态信息 */}
+                            {source.name === 'Google Drive' && source.status === 'error' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '认证已过期' : 'Authentication expired'}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test OAuth Flow</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; }
+        .test-link { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            background: #4F46E5; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            margin: 10px 0;
+        }
+        .description { color: #666; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 AI Brain Slack Integration Test</h1>
+    
+    <div class="description">
+        测试完整的 OAuth → 频道选择 → 配置完成流程
+    </div>
+    
+    <h2>测试链接</h2>
+    
+    <p><strong>1. 数据源配置页面</strong></p>
+    <a href="http://localhost:3000/contexts/e7c5aa1e-de00-4327-81dd-cfeba3030081/settings?tab=data-sources" 
+       class="test-link" target="_blank">
+        📊 打开数据源页面
+    </a>
+    
+    <p><strong>2. 频道选择页面 (OAuth成功后)</strong></p>
+    <a href="http://localhost:3000/contexts/e7c5aa1e-de00-4327-81dd-cfeba3030081/slack/channels?team=AI%20Brain%20Team" 
+       class="test-link" target="_blank">
+        📋 测试频道选择页面
+    </a>
+    
+    <p><strong>3. API测试</strong></p>
+    <a href="http://localhost:3000/api/slack/config?contextId=test123" 
+       class="test-link" target="_blank">
+        🔧 测试Slack配置API
+    </a>
+    
+    <a href="http://localhost:3000/api/slack/channels" 
+       class="test-link" target="_blank">
+        📡 测试频道列表API
+    </a>
+    
+    <h2>预期流程</h2>
+    <ol>
+        <li>用户在数据源页面点击 "Quick Connect to Slack"</li>
+        <li>完成 OAuth 认证后，重定向到频道选择页面</li>
+        <li>用户选择要监控的频道</li>
+        <li>点击 "开始监控" 完成配置</li>
+        <li>显示成功页面，然后重定向回数据源页面</li>
+    </ol>
+    
+    <h2>✅ 已完成功能</h2>
+    <ul>
+        <li>OAuth回调处理 (保存token到环境变量)</li>
+        <li>频道列表API (真实Slack API集成)</li>
+        <li>频道选择界面 (交互式UI)</li>
+        <li>配置保存API (完整数据保存)</li>
+        <li>成功页面和重定向</li>
+        <li>错误处理和降级方案</li>
+    </ul>
+</body>
+</html>

@@ -14,11 +14,13 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get('error')
 
   if (error) {
-    return NextResponse.redirect(`/contexts/${state}?slack_error=${error}`)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    return NextResponse.redirect(`${baseUrl}/contexts/${state}/settings?tab=data-sources&slack_error=${error}`)
   }
 
   if (!code) {
-    return NextResponse.redirect(`/contexts/${state}?slack_error=no_code`)
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    return NextResponse.redirect(`${baseUrl}/contexts/${state}/settings?tab=data-sources&slack_error=no_code`)
   }
 
   try {
@@ -93,9 +95,9 @@ export async function GET(req: NextRequest) {
 
     console.log('🎉 OAuth流程完成，重定向回应用')
 
-    // 5. 重定向回成功页面
+    // 5. 重定向到频道选择页面
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    return NextResponse.redirect(`${baseUrl}/contexts/${state}?slack_success=true&team=${encodeURIComponent(tokenData.team?.name || 'Unknown')}`)
+    return NextResponse.redirect(`${baseUrl}/contexts/${state}/slack/channels?team=${encodeURIComponent(tokenData.team?.name || 'Unknown')}`)
 
   } catch (error) {
     console.error('Slack OAuth error:', error)

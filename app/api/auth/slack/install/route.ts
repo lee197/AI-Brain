@@ -9,17 +9,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const contextId = searchParams.get('context_id') || ''
-    const isDemoMode = searchParams.get('demo') === 'true'
     
     if (!contextId) {
       throw new Error('Missing context_id parameter')
-    }
-    
-    // 演示模式：快速模拟安装成功
-    if (isDemoMode) {
-      console.log('🔧 演示模式：模拟Slack安装成功')
-      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-      return NextResponse.redirect(`${baseUrl}/contexts/${contextId}?slack_success=true&demo=true`)
     }
     
     // 生成真正的一键安装URL
