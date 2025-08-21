@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { Database } from '@/types/database'
 
@@ -26,5 +27,15 @@ export const createClient = async () => {
         },
       },
     }
+  )
+}
+
+/**
+ * 创建服务客户端，用于服务端操作，绕过RLS
+ */
+export const createServiceClient = () => {
+  return createSupabaseClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }

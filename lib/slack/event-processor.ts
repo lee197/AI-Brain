@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { SlackWebApi } from '@/lib/slack/api-client'
+import { DatabaseSlackMessage } from '@/lib/slack/database-storage'
+import { storeSlackMessage } from '@/lib/slack/database-storage'
+import fs from 'fs'
+import path from 'path'
 
 // 服务端频道配置管理（简化版本）
 // 在生产环境中，这应该存储在数据库中
@@ -30,6 +34,43 @@ function isChannelAllowed(contextId: string, channelId: string): boolean {
   }
   
   return allowedChannels.includes(channelId)
+}
+
+/**
+ * 根据频道ID查找对应的contextId
+ * @param channelId Slack频道ID
+ * @returns contextId或null
+ */
+function findContextByChannel(channelId: string): string | null {
+  try {
+    const configDir = path.join(process.cwd(), '.slack-configs')
+    if (!fs.existsSync(configDir)) {
+      return null
+    }
+    
+    const configFiles = fs.readdirSync(configDir)
+    
+    for (const file of configFiles) {
+      if (file.endsWith('.json')) {
+        try {
+          const configPath = path.join(configDir, file)
+          const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+          
+          // 检查这个频道是否在配置的频道列表中
+          if (configData.configuredChannels && configData.configuredChannels.includes(channelId)) {
+            console.log(`✅ Found context ${file.replace('.json', '')} for channel ${channelId}`)
+            return file.replace('.json', '') // 返回contextId
+          }
+        } catch (error) {
+          console.error('Error reading config file:', file, error)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error finding context for channel:', error)
+  }
+  
+  return null
 }
 
 // 消息格式化接口
@@ -149,108 +190,65 @@ export async function processSlackEvent(event: SlackEvent) {
  * @param event Slack消息事件
  */
 async function handleSlackMessage(event: SlackMessageEvent) {
-  const supabase = await createClient()
   const slackApi = new SlackWebApi()
 
   try {
-    // 暂时简化：直接存储到messages表，跳过Slack专用表
-    console.log('Storing Slack message to messages table...')
+    console.log(`📨 Processing Slack message from user ${event.user} in channel ${event.channel}`)
     
-    // 获取默认context
-    const contextId = await getDefaultContextId()
+    // 根据频道ID找到对应的contextId
+    const contextId = findContextByChannel(event.channel)
     if (!contextId) {
-      console.log('No context available, creating a basic conversation')
+      console.log(`⚠️ No context found for channel ${event.channel}, skipping message`)
       return
     }
 
     // 检查这个频道是否在用户选择的频道列表中
     if (!isChannelAllowed(contextId, event.channel)) {
-      console.log(`频道 ${event.channel} 未在监听列表中，跳过消息处理`)
+      console.log(`⚠️ Channel ${event.channel} not in allowed list for context ${contextId}, skipping`)
       return
     }
 
-    // 获取用户信息（可选，如果API失败就用默认值）
-    let userInfo: any = null
-    let channelInfo: any = null
-    
-    try {
-      const [user, channel] = await Promise.all([
-        slackApi.getUserInfo(event.user),
-        slackApi.getChannelInfo(event.channel)
-      ])
-      userInfo = user
-      channelInfo = channel
-    } catch (apiError) {
-      console.log('Slack API error, using fallback values:', apiError.message)
+    // 获取用户和频道信息
+    const [userInfo, channelInfo] = await Promise.all([
+      slackApi.getUserInfo(event.user),
+      slackApi.getChannelInfo(event.channel)
+    ])
+
+    // 构建消息对象
+    const message: DatabaseSlackMessage = {
+      id: event.ts,
+      channel: {
+        id: event.channel,
+        name: channelInfo.name
+      },
+      user: {
+        id: event.user,
+        name: userInfo.profile?.display_name || userInfo.real_name,
+        avatar: userInfo.profile?.image_72 || userInfo.profile?.image_48 || '',
+        real_name: userInfo.real_name
+      },
+      text: event.text,
+      timestamp: new Date(parseFloat(event.ts) * 1000), // Slack时间戳是秒，需要转换为毫秒
+      thread_ts: event.thread_ts,
+      thread_count: 0, // 暂时设为0，后续可以实现线程计数
+      reactions: [], // 暂时为空，后续可以实现表情反应同步
+      metadata: {
+        team_id: undefined, // 可以从webhook payload获取
+        context_id: contextId,
+        event_ts: undefined,
+        client_msg_id: undefined
+      }
     }
 
-    // 创建对话（如果不存在）
-    const { data: conversation } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('context_id', contextId)
-      .eq('title', `Slack #${channelInfo?.name || 'channel'}`)
-      .single()
+    // 使用纯数据库存储系统保存消息
+    await storeSlackMessage(contextId, { ...message, team_id: 'T12345' })
 
-    let conversationId = conversation?.id
+    console.log(`✅ Stored Slack message ${event.ts} from ${message.user.name} in #${message.channel.name} for context ${contextId}`)
 
-    if (!conversationId) {
-      const { data: newConversation } = await supabase
-        .from('conversations')
-        .insert({
-          context_id: contextId,
-          title: `Slack #${channelInfo?.name || 'channel'}`,
-          user_id: null, // System conversation
-          metadata: {
-            source: 'slack',
-            channel_id: event.channel
-          }
-        })
-        .select('id')
-        .single()
-      
-      conversationId = newConversation?.id
-    }
-
-    // 格式化消息内容
-    const formattedContent = formatSlackMessage(event.text, {
-      userName: userInfo?.real_name || userInfo?.display_name || 'Slack User',
-      channelName: channelInfo?.name || 'channel',
-      timestamp: event.ts
-    })
-
-    // 存储消息到messages表
-    const { data: message, error } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        role: 'user',
-        content: formattedContent,
-        metadata: {
-          source: 'slack',
-          channel_id: event.channel,
-          channel_name: channelInfo?.name || 'unknown',
-          user_id: event.user,
-          user_name: userInfo?.real_name || 'Unknown User',
-          timestamp: event.ts,
-          avatar: userInfo?.profile?.image_72 || ''
-        }
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error('Error storing message:', error)
-      return
-    }
-
-    console.log('✅ Slack message stored successfully:', message.id)
-
-    // 实时广播
-    await broadcastSlackMessage(message, contextId)
+    // TODO: 可以在这里添加实时广播到前端的功能
 
   } catch (error) {
-    console.error('Error handling Slack message:', error)
+    console.error('❌ Error handling Slack message:', error)
     throw error
   }
 }

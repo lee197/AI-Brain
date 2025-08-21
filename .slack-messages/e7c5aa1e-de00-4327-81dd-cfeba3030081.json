@@ -1,0 +1,270 @@
+{
+  "messages": [
+    {
+      "id": "1755714919.548000",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_TEST_USER_1755714919548",
+        "name": "User 9548",
+        "avatar": "https://ui-avatars.com/api/?name=User+9548&size=72&background=random",
+        "real_name": "User 9548"
+      },
+      "text": "混合存储测试消息 - 2025/8/21 01:35:19",
+      "timestamp": "2025-08-20T18:35:19.548Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      },
+      "team_id": "T12345"
+    },
+    {
+      "id": "1755714856.461000",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_TEST_USER_1755714856461",
+        "name": "User 6461",
+        "avatar": "https://ui-avatars.com/api/?name=User+6461&size=72&background=random",
+        "real_name": "User 6461"
+      },
+      "text": "混合存储测试消息 - 2025/8/21 01:34:16",
+      "timestamp": "2025-08-20T18:34:16.461Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      },
+      "team_id": "T12345"
+    },
+    {
+      "id": "1755714751.698000",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_TEST_USER_1755714751698",
+        "name": "User 1698",
+        "avatar": "https://ui-avatars.com/api/?name=User+1698&size=72&background=random",
+        "real_name": "User 1698"
+      },
+      "text": "混合存储测试消息 - 2025/8/21 01:32:31",
+      "timestamp": "2025-08-20T18:32:31.698Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      },
+      "team_id": "T12345"
+    },
+    {
+      "id": "1755714596.473000",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_TEST_USER_1755714596473",
+        "name": "User 6473",
+        "avatar": "https://ui-avatars.com/api/?name=User+6473&size=72&background=random",
+        "real_name": "User 6473"
+      },
+      "text": "混合存储测试消息 - 2025/8/21 01:29:56",
+      "timestamp": "2025-08-20T18:29:56.473Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      },
+      "team_id": "T12345"
+    },
+    {
+      "id": "1755714557.683000",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_TEST_USER_1755714557683",
+        "name": "User 7683",
+        "avatar": "https://ui-avatars.com/api/?name=User+7683&size=72&background=random",
+        "real_name": "User 7683"
+      },
+      "text": "混合存储测试消息 - 2025/8/21 01:29:17",
+      "timestamp": "2025-08-20T18:29:17.683Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      },
+      "team_id": "T12345"
+    },
+    {
+      "id": "1755713654.011949",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U09AHKD8GHM",
+        "name": "Qi Lee",
+        "avatar": "https://avatars.slack-edge.com/2025-08-18/9371539739190_df383adb1d0102f17013_72.png",
+        "real_name": "Qi Lee"
+      },
+      "text": "sdfsdf",
+      "timestamp": "2025-08-20T18:14:14.011Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      }
+    },
+    {
+      "id": "1755713418.295209",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U09AHKD8GHM",
+        "name": "Qi Lee",
+        "avatar": "https://avatars.slack-edge.com/2025-08-18/9371539739190_df383adb1d0102f17013_72.png",
+        "real_name": "Qi Lee"
+      },
+      "text": "dadasd",
+      "timestamp": "2025-08-20T18:10:18.295Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      }
+    },
+    {
+      "id": "1755713335.068499",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U09AHKD8GHM",
+        "name": "Qi Lee",
+        "avatar": "https://avatars.slack-edge.com/2025-08-18/9371539739190_df383adb1d0102f17013_72.png",
+        "real_name": "Qi Lee"
+      },
+      "text": ":slightly_smiling_face:",
+      "timestamp": "2025-08-20T18:08:55.068Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      }
+    },
+    {
+      "id": "1755713248.968",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U_YOUR_USER_ID",
+        "name": "User R_ID",
+        "avatar": "https://ui-avatars.com/api/?name=User+R_ID&size=72&background=random",
+        "real_name": "User R_ID"
+      },
+      "text": "测试真实Slack集成 - 这条消息是通过webhook发送的！✨",
+      "timestamp": "2025-08-20T18:07:28.968Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      }
+    },
+    {
+      "id": "1755713201",
+      "channel": {
+        "id": "C09AHKG46HM",
+        "name": "ai-brain"
+      },
+      "user": {
+        "id": "U1234567890",
+        "name": "User 7890",
+        "avatar": "https://ui-avatars.com/api/?name=User+7890&size=72&background=random",
+        "real_name": "User 7890"
+      },
+      "text": "你好！这是从真实Slack发送的测试消息！🚀",
+      "timestamp": "2025-08-20T18:06:41.000Z",
+      "thread_count": 0,
+      "reactions": [],
+      "metadata": {
+        "context_id": "e7c5aa1e-de00-4327-81dd-cfeba3030081"
+      }
+    }
+  ],
+  "channels": {
+    "C09AHKG46HM": {
+      "id": "C09AHKG46HM",
+      "name": "ai-brain",
+      "messageCount": 10
+    }
+  },
+  "users": {
+    "U09AHKD8GHM": {
+      "id": "U09AHKD8GHM",
+      "name": "Qi Lee",
+      "avatar": "https://avatars.slack-edge.com/2025-08-18/9371539739190_df383adb1d0102f17013_72.png",
+      "real_name": "Qi Lee"
+    },
+    "U_YOUR_USER_ID": {
+      "id": "U_YOUR_USER_ID",
+      "name": "User R_ID",
+      "avatar": "https://ui-avatars.com/api/?name=User+R_ID&size=72&background=random",
+      "real_name": "User R_ID"
+    },
+    "U1234567890": {
+      "id": "U1234567890",
+      "name": "User 7890",
+      "avatar": "https://ui-avatars.com/api/?name=User+7890&size=72&background=random",
+      "real_name": "User 7890"
+    },
+    "U_TEST_USER_1755714557683": {
+      "id": "U_TEST_USER_1755714557683",
+      "name": "User 7683",
+      "avatar": "https://ui-avatars.com/api/?name=User+7683&size=72&background=random",
+      "real_name": "User 7683"
+    },
+    "U_TEST_USER_1755714596473": {
+      "id": "U_TEST_USER_1755714596473",
+      "name": "User 6473",
+      "avatar": "https://ui-avatars.com/api/?name=User+6473&size=72&background=random",
+      "real_name": "User 6473"
+    },
+    "U_TEST_USER_1755714751698": {
+      "id": "U_TEST_USER_1755714751698",
+      "name": "User 1698",
+      "avatar": "https://ui-avatars.com/api/?name=User+1698&size=72&background=random",
+      "real_name": "User 1698"
+    },
+    "U_TEST_USER_1755714856461": {
+      "id": "U_TEST_USER_1755714856461",
+      "name": "User 6461",
+      "avatar": "https://ui-avatars.com/api/?name=User+6461&size=72&background=random",
+      "real_name": "User 6461"
+    },
+    "U_TEST_USER_1755714919548": {
+      "id": "U_TEST_USER_1755714919548",
+      "name": "User 9548",
+      "avatar": "https://ui-avatars.com/api/?name=User+9548&size=72&background=random",
+      "real_name": "User 9548"
+    }
+  },
+  "stats": {
+    "totalMessages": 10,
+    "lastUpdate": "2025-08-20T18:35:19.983Z"
+  }
+}

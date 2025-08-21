@@ -4,15 +4,6 @@ import { setServerChannelConfig } from '@/lib/slack/event-processor'
 
 export async function GET(req: NextRequest) {
   try {
-    // 检查Slack连接状态
-    const botToken = process.env.SLACK_BOT_TOKEN
-    if (!botToken || botToken === 'xoxb-your-slack-bot-token') {
-      return NextResponse.json({ 
-        error: 'Slack未连接',
-        channels: []
-      }, { status: 400 })
-    }
-
     const slackApi = new SlackWebApi()
     
     // 获取所有可访问的频道和Bot已加入的频道

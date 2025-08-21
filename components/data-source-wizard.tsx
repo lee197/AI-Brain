@@ -538,14 +538,86 @@ export function DataSourceWizard({ contextId, onComplete }: DataSourceWizardProp
                     
                     {/* 连接状态信息 */}
                     {source.id === 'slack' && !slackChannelStats && (
-                      <div className="text-sm text-gray-500">
-                        {language === 'zh' ? '加载配置信息中...' : 'Loading configuration...'}
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                          {language === 'zh' ? '加载配置信息中...' : 'Loading configuration...'}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => {
+                            if (source.id === 'slack') {
+                              window.location.href = `/contexts/${contextId}/slack/messages`
+                            } else {
+                              // 其他数据源的详情页面（未来实现）
+                              console.log(`View details for ${source.name}`)
+                            }
+                          }}
+                        >
+                          {source.id === 'slack' 
+                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
+                            : (language === 'zh' ? '查看详情' : 'View Details')
+                          }
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {source.id === 'slack' && slackChannelStats && slackChannelStats.configuredChannels > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="text-gray-500">{language === 'zh' ? '已配置频道：' : 'Configured Channels: '}</span>
+                          <span className="font-semibold text-blue-600">
+                            {slackChannelStats.configuredChannels}/{slackChannelStats.totalChannels}
+                          </span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => {
+                            if (source.id === 'slack') {
+                              window.location.href = `/contexts/${contextId}/slack/messages`
+                            } else {
+                              // 其他数据源的详情页面（未来实现）
+                              console.log(`View details for ${source.name}`)
+                            }
+                          }}
+                        >
+                          {source.id === 'slack' 
+                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
+                            : (language === 'zh' ? '查看详情' : 'View Details')
+                          }
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
                     )}
                     {source.id !== 'slack' && (
-                      <div className="text-sm">
-                        <span className="text-gray-500">{language === 'zh' ? '连接状态：' : 'Connection: '}</span>
-                        <span className="font-semibold text-green-600">{language === 'zh' ? '正常' : 'Active'}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                          <span className="text-gray-500">{language === 'zh' ? '连接状态：' : 'Connection: '}</span>
+                          <span className="font-semibold text-green-600">{language === 'zh' ? '正常' : 'Active'}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-blue-600 hover:text-blue-700"
+                          onClick={() => {
+                            if (source.id === 'slack') {
+                              window.location.href = `/contexts/${contextId}/slack/messages`
+                            } else {
+                              // 其他数据源的详情页面（未来实现）
+                              console.log(`View details for ${source.name}`)
+                            }
+                          }}
+                        >
+                          {source.id === 'slack' 
+                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
+                            : (language === 'zh' ? '查看详情' : 'View Details')
+                          }
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
                     )}
                     
