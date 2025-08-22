@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { useAuth } from '@/hooks/use-auth'
-import { DataSourceWizard } from '@/components/data-source-wizard'
+import DataSourceWizard from '@/components/data-source-wizard'
 import {
   Settings,
   ArrowLeft,

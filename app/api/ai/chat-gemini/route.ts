@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { loadSlackMessages } from '@/lib/slack/database-storage'
+import { GmailAIIndexer } from '@/lib/google-workspace/gmail-ai-indexer'
+import { GmailApiClient } from '@/lib/google-workspace/gmail-client'
+import fs from 'fs/promises'
+import path from 'path'
 
 // Gemini API配置
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
@@ -12,14 +16,28 @@ const requestSchema = z.object({
   contextId: z.string().optional(),
 })
 
+// Gmail认证加载函数
+async function loadGmailAuth(contextId: string) {
+  try {
+    const authFile = path.join(process.cwd(), 'data', 'gmail', `${contextId}.json`)
+    const authData = JSON.parse(await fs.readFile(authFile, 'utf-8'))
+    return authData
+  } catch (error) {
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { message, contextId } = requestSchema.parse(body)
 
-    // 获取Slack消息上下文
+    // 获取多源上下文
     let slackContext = ''
+    let gmailContext = ''
+    
     if (contextId) {
+      // 获取Slack消息上下文
       try {
         console.log(`🔍 Loading Slack context for contextId: ${contextId}`)
         const { messages } = await loadSlackMessages(contextId, { limit: 10 })
@@ -38,12 +56,73 @@ export async function POST(req: NextRequest) {
         }
       } catch (contextError) {
         console.warn('⚠️ Failed to load Slack context:', contextError)
-        // 继续处理，不因为上下文获取失败而中断
+      }
+
+      // 获取Gmail上下文
+      try {
+        console.log(`📧 Loading Gmail context for contextId: ${contextId}`)
+        const gmailIndexer = new GmailAIIndexer(contextId)
+        
+        // 首先尝试从AI索引中搜索相关邮件
+        let relevantEmails = []
+        try {
+          relevantEmails = await gmailIndexer.getRelevantEmailsForAI(message, 5)
+        } catch (indexError) {
+          console.warn('⚠️ AI indexer failed:', indexError)
+          // 继续执行，不让索引错误阻止直接获取
+        }
+        
+        // 如果AI索引中没有找到邮件，尝试实时获取最新邮件
+        if (relevantEmails.length === 0) {
+          console.log('📭 No indexed emails found, trying to get recent emails directly...')
+          
+          try {
+            // 直接使用Gmail客户端获取最新邮件
+            const authData = await loadGmailAuth(contextId)
+            if (authData?.credentials) {
+              const gmailClient = new GmailApiClient(authData.credentials)
+              
+              // 使用try-catch包装Gmail API调用，避免权限错误导致整个请求失败
+              try {
+                const recentEmails = await gmailClient.getInboxEmailsLight(10)
+                
+                if (recentEmails.length > 0) {
+                  console.log(`📧 Got ${recentEmails.length} recent emails directly from Gmail API`)
+                  
+                  // 转换为AI上下文格式
+                  gmailContext = recentEmails.slice(0, 5)
+                    .map((email: any) => {
+                      const time = new Date(email.timestamp).toLocaleString('zh-CN')
+                      return `[${time}] 邮件: ${email.subject}\n发件人: ${email.sender || email.senderEmail}\n预览: ${email.snippet}\n状态: ${email.isRead ? '已读' : '未读'}`
+                    })
+                    .join('\n\n')
+                }
+              } catch (gmailApiError) {
+                console.warn('⚠️ Gmail API call failed (insufficient scopes or other error):', gmailApiError)
+                // 继续执行，不让Gmail错误阻止AI回答
+              }
+            }
+          } catch (directFetchError) {
+            console.warn('⚠️ Failed to fetch emails directly:', directFetchError)
+          }
+        } else {
+          // 使用AI索引的邮件
+          gmailContext = relevantEmails
+            .map(email => {
+              const time = new Date(email.timestamp).toLocaleString('zh-CN')
+              return `[${time}] 邮件: ${email.subject}\n发件人: ${email.from}\n摘要: ${email.summary}\n重要性: ${email.importance}/10\n分类: ${email.category}`
+            })
+            .join('\n\n')
+          
+          console.log(`📧 Found ${relevantEmails.length} relevant emails from AI index`)
+        }
+      } catch (gmailError) {
+        console.warn('⚠️ Failed to load Gmail context:', gmailError)
       }
     }
 
     // 构建增强的提示
-    const enhancedMessage = buildEnhancedPrompt(message, slackContext)
+    const enhancedMessage = buildEnhancedPrompt(message, slackContext, gmailContext)
 
     // 如果有Gemini API密钥，使用Gemini
     if (GEMINI_API_KEY) {
@@ -263,8 +342,8 @@ async function getSlackContext(contextId: string): Promise<ContextSource> {
 /**
  * 构建包含多源上下文的增强提示
  */
-function buildEnhancedPrompt(userMessage: string, slackContext: string): string {
-  if (!slackContext) {
+function buildEnhancedPrompt(userMessage: string, slackContext: string, gmailContext: string = ''): string {
+  if (!slackContext && !gmailContext) {
     // 没有上下文时的基础提示
     return `你是一个智能工作助手，帮助用户处理工作相关的问题和任务。
 
@@ -273,19 +352,61 @@ function buildEnhancedPrompt(userMessage: string, slackContext: string): string 
 请提供有用和准确的回答。`
   }
 
+  // 构建多源上下文
+  let contextSections = []
+  
+  if (slackContext) {
+    contextSections.push(`## 团队对话记录 (Slack)
+${slackContext}`)
+  }
+  
+  if (gmailContext) {
+    contextSections.push(`## 相关邮件记录 (Gmail)
+${gmailContext}`)
+  }
+
   // 有上下文时的增强提示
   return `你是一个智能工作助手，具备以下能力：
 1. 分析团队的协作对话（Slack、Jira、GitHub等）
-2. 理解项目进展和团队动态  
+2. 理解邮件沟通和项目相关信息
 3. 基于实际工作内容提供insights
 4. 帮助用户了解工作状态和协作情况
+5. 综合多个信息源提供全面的回答
 
-以下是最近的团队对话记录：
+以下是相关的工作上下文信息：
 ---
-${slackContext}
+${contextSections.join('\n\n')}
 ---
 
 用户问题: ${userMessage}
 
-请基于以上团队对话内容和用户问题，提供有价值的回答和分析。如果用户问题与对话内容相关，请引用具体的消息内容。`
+请基于以上工作上下文和用户问题，提供有价值的回答和分析。
+
+**重要：请严格按照以下Markdown格式回答，确保良好的可读性：**
+
+## 📧 邮件分析结果
+
+### 📋 重要邮件
+对于每封重要邮件，使用以下格式：
+- **⏰ HH:MM** | **👤 发件人** | **📌 主题**
+  💬 简要内容描述（1-2句话）
+
+### ⚠️ 需要关注的事项
+- 列出紧急或重要的待处理事项
+- 使用**粗体**突出关键信息
+
+### 📝 其他邮件
+- 简要列出一般性邮件
+- 按重要性排序
+
+### 📊 总结
+**今日邮件概况：** 用一句话总结今天的邮件情况
+
+**格式要求：**
+- 必须使用Markdown语法：## ### ** - 等
+- 时间格式：**⏰ 21:15** 或 **⏰ 下午9:15**
+- 每个部分之间空一行
+- 重要信息用**粗体**标注
+- 适当使用表情符号增强可读性
+- 如果没有邮件内容，说明"暂无邮件数据"`
 }

@@ -1,514 +1,739 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { ConnectionStatusToast } from '@/components/connection-status-toast'
-import { SlackIntegrationManager } from '@/components/slack/slack-integration-manager'
-import {
-  Slack,
-  Github,
-  FileText,
-  CheckCircle,
-  Clock,
-  Zap,
-  ArrowRight,
-  Sparkles,
-  ChevronRight,
-  AlertCircle,
-  Loader2,
-  Star,
-  TrendingUp,
-  Users,
-  MessageSquare,
+import { 
+  MessageSquare, 
+  Database, 
+  Github, 
+  Mail, 
+  FolderOpen, 
+  Calendar,
+  Users, 
+  BrainCircuit, 
+  FolderSync, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  ExternalLink, 
+  Star, 
+  Hash, 
+  AtSign, 
+  Search, 
+  MessageCircle,
+  ClipboardList,
+  CalendarDays,
   GitBranch,
-  ListChecks,
+  Code,
+  FileText,
+  Loader2,
   Settings,
-  ExternalLink,
   XCircle,
-  Shield
+  Zap,
+  BarChart3,
+  TrendingUp,
+  Monitor,
+  Share,
+  LinkIcon,
+  Phone,
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react'
+// import SlackIntegrationManager from '@/components/slack/slack-integration-manager'
 
-interface DataSourceWizardProps {
-  contextId: string
-  onComplete?: () => void
+// 定义连接状态的类型
+interface ConnectionStatus {
+  connected: boolean
+  username?: string
+  teamName?: string
+  lastSync?: string
+  connectedAt?: string
 }
 
-export function DataSourceWizard({ contextId, onComplete }: DataSourceWizardProps) {
+export default function DataSourceWizard() {
+  const params = useParams()
+  const contextId = params.id as string
   const { t, language } = useLanguage()
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [connectedSources, setConnectedSources] = useState<string[]>([])
-  const [showSuccess, setShowSuccess] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
   const [showConnectionToast, setShowConnectionToast] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [connectedSources, setConnectedSources] = useState<string[]>([])
   const [showSlackManager, setShowSlackManager] = useState(false)
-  const [slackConfig, setSlackConfig] = useState<any>(null)
+  const [slackConnected, setSlackConnected] = useState(false)
+  const [slackConnectionStatus, setSlackConnectionStatus] = useState<ConnectionStatus | null>(null)
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   const [slackChannelStats, setSlackChannelStats] = useState<{
     configuredChannels: number
     totalChannels: number
-    lastConfigured?: string
   } | null>(null)
-  const [isCheckingConnection, setIsCheckingConnection] = useState(true)
+  const [isLoadingConnections, setIsLoadingConnections] = useState(true) // 添加全局加载状态
+  const [isRefreshing, setIsRefreshing] = useState(false) // 手动刷新状态
+  const [loadingButtons, setLoadingButtons] = useState<Set<string>>(new Set()) // 按钮级别的加载状态
 
-  // 检测URL参数中的Slack成功状态和加载时检查连接状态
+  // 检查各个数据源的连接状态
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const slackSuccess = urlParams.get('slack_success')
-    const slackConfigured = urlParams.get('slack_configured')
-    const isDemo = urlParams.get('demo')
-    
-    if (slackSuccess === 'true' || slackConfigured === 'true') {
-      console.log('🎉 检测到Slack连接成功，更新状态')
-      setConnectedSources(prev => [...prev.filter(s => s !== 'slack'), 'slack'])
-      setShowSuccess(true)
-      
-      // 如果是配置成功，稍后刷新频道统计
-      if (slackConfigured === 'true') {
-        setTimeout(() => {
-          fetchSlackChannelStats()
-        }, 500)
-      }
-      
-      // 清理URL参数
-      const url = new URL(window.location.href)
-      url.searchParams.delete('slack_success')
-      url.searchParams.delete('slack_configured')
-      url.searchParams.delete('demo')
-      url.searchParams.delete('team')
-      window.history.replaceState({}, '', url.toString())
-      
-      // 5秒后隐藏成功提示
-      setTimeout(() => {
-        setShowSuccess(false)
-      }, 5000)
-    } else {
-      // 如果没有URL参数，检查实际的连接状态
-      checkSlackConnectionStatus()
-    }
-  }, [])
+    checkAllConnectionStatuses()
+  }, [contextId])
 
-  // 检查Slack连接状态
-  const checkSlackConnectionStatus = async () => {
+  const checkAllConnectionStatuses = async () => {
+    // 设置所有按钮的加载状态
+    const dataSourceIds = ['slack', 'gmail', 'google-drive', 'google-calendar', 'jira']
+    setLoadingButtons(new Set(dataSourceIds.filter(id => !connectedSources.includes(id))))
+    setIsLoadingConnections(true) // 开始加载
+    const connected: string[] = []
+    
     try {
-      setIsCheckingConnection(true)
-      console.log('🔍 检查Slack连接状态...')
-      const response = await fetch(`/api/slack/config?contextId=${contextId}`)
-      const result = await response.json()
+      console.log('🚀 使用批量状态检查API...')
+      const startTime = Date.now()
       
-      if (result.success && result.config && result.config.isConnected) {
-        console.log('✅ 检测到已存在的Slack连接:', result.workspace?.teamName)
-        setConnectedSources(prev => [...prev.filter(s => s !== 'slack'), 'slack'])
+      // 使用新的批量状态检查API
+      const response = await fetch(`/api/data-sources/status?context_id=${contextId}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        const endTime = Date.now()
         
-        // 获取频道配置信息
-        await fetchSlackChannelStats()
+        console.log(`✅ 批量状态检查完成，耗时: ${endTime - startTime}ms`)
+        console.log('📊 状态检查结果:', data)
+        
+        if (data.success && data.statuses) {
+          // 处理Slack状态
+          if (data.statuses.slack && data.statuses.slack.connected) {
+            connected.push('slack')
+            setSlackConnected(true)
+            setSlackConnectionStatus(data.statuses.slack)
+          }
+          
+          // 处理Gmail状态
+          if (data.statuses.gmail && data.statuses.gmail.connected) {
+            connected.push('gmail')
+          }
+          
+          // 处理Google Drive状态
+          if (data.statuses.googleDrive && data.statuses.googleDrive.connected) {
+            connected.push('google-drive')
+          }
+          
+          // 处理Google Calendar状态
+          if (data.statuses.googleCalendar && data.statuses.googleCalendar.connected) {
+            connected.push('google-calendar')
+          }
+          
+          // 显示性能信息
+          if (data.timing) {
+            console.log(`📈 性能统计: 总耗时${data.timing.duration}ms, 检查${data.timing.checkedSources}个, 缓存${data.timing.cachedSources}个`)
+          }
+        }
       } else {
-        console.log('❌ 未检测到Slack连接')
-        setConnectedSources(prev => prev.filter(s => s !== 'slack'))
-        setSlackChannelStats(null)
+        console.error('批量状态检查API失败，回退到单独检查')
+        // 如果批量API失败，回退到原来的单独检查方式
+        await checkIndividualStatuses(connected)
+      }
+    } catch (error) {
+      console.error('批量状态检查失败，回退到单独检查:', error)
+      // API失败时回退到原来的方式
+      await checkIndividualStatuses(connected)
+    }
+
+    setConnectedSources(connected)
+    setLoadingButtons(new Set()) // 清除所有按钮加载状态
+    setIsLoadingConnections(false) // 加载完成
+  }
+
+  // 回退方案：单独检查各个数据源状态
+  const checkIndividualStatuses = async (connected: string[]) => {
+    // 检查Slack连接状态
+    try {
+      const slackResponse = await fetch(`/api/slack/config?contextId=${contextId}`)
+      if (slackResponse.ok) {
+        const slackData = await slackResponse.json()
+        if (slackData.config && slackData.config.isConnected) {
+          connected.push('slack')
+          setSlackConnected(true)
+          setSlackConnectionStatus(slackData.config)
+        }
       }
     } catch (error) {
       console.error('检查Slack连接状态失败:', error)
-      setConnectedSources(prev => prev.filter(s => s !== 'slack'))
-      setSlackChannelStats(null)
-    } finally {
-      setIsCheckingConnection(false)
+    }
+
+    // 检查Gmail连接状态
+    try {
+      const gmailResponse = await fetch(`/api/gmail/status?context_id=${contextId}`)
+      if (gmailResponse.ok) {
+        const gmailData = await gmailResponse.json()
+        if (gmailData.connected) {
+          connected.push('gmail')
+        }
+      }
+    } catch (error) {
+      console.error('检查Gmail连接状态失败:', error)
+    }
+
+    // 检查Google Drive连接状态
+    try {
+      const driveResponse = await fetch(`/api/google-drive/status?context_id=${contextId}`)
+      if (driveResponse.ok) {
+        const driveData = await driveResponse.json()
+        if (driveData.connected) {
+          connected.push('google-drive')
+        }
+      }
+    } catch (error) {
+      console.error('检查Google Drive连接状态失败:', error)
+    }
+
+    // 检查Google Calendar连接状态
+    try {
+      const calendarResponse = await fetch(`/api/google-calendar/status?context_id=${contextId}`)
+      if (calendarResponse.ok) {
+        const calendarData = await calendarResponse.json()
+        if (calendarData.connected) {
+          connected.push('google-calendar')
+        }
+      }
+    } catch (error) {
+      console.error('检查Google Calendar连接状态失败:', error)
     }
   }
 
-  // 获取Slack频道配置统计
-  const fetchSlackChannelStats = async () => {
+  // 手动刷新状态（清除缓存）
+  const handleRefreshStatus = async () => {
+    setIsRefreshing(true)
+    
     try {
-      console.log('📊 获取Slack频道配置统计...')
+      // 首先清除缓存
+      await fetch(`/api/data-sources/status?context_id=${contextId}`, { method: 'DELETE' })
+      console.log('🗑️ 已清除状态缓存，正在重新检查...')
       
-      // 从新的API端点获取频道配置信息
-      const configResponse = await fetch(`/api/slack/channel-config?contextId=${contextId}`)
-      const configData = await configResponse.json()
-      
-      if (configData.success && configData.stats) {
+      // 然后重新检查状态
+      await checkAllConnectionStatuses()
+    } catch (error) {
+      console.error('刷新状态失败:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // 检查Slack频道配置
+  useEffect(() => {
+    if (slackConnected) {
+      checkSlackChannelConfig()
+    }
+  }, [slackConnected, contextId])
+
+  const checkSlackChannelConfig = async () => {
+    try {
+      const response = await fetch(`/api/slack/channel-config?contextId=${contextId}`)
+      if (response.ok) {
+        const data = await response.json()
         setSlackChannelStats({
-          configuredChannels: configData.stats.configuredCount,
-          totalChannels: configData.stats.totalCount,
-          lastConfigured: new Date(configData.stats.lastConfigured).toLocaleDateString()
-        })
-        
-        console.log('📊 频道统计:', configData.stats)
-      } else {
-        // 如果新API失败，回退到旧方法
-        const channelsResponse = await fetch('/api/slack/channels')
-        const channelsData = await channelsResponse.json()
-        
-        setSlackChannelStats({
-          configuredChannels: 0, // 没有配置时为0
-          totalChannels: channelsData.success ? channelsData.channels?.length || 0 : 0,
-          lastConfigured: undefined
+          configuredChannels: data.configuredChannels || 0,
+          totalChannels: data.totalAvailableChannels || 0
         })
       }
     } catch (error) {
-      console.error('获取频道统计失败:', error)
-      // 设置默认值
-      setSlackChannelStats({
-        configuredChannels: 0,
-        totalChannels: 0,
-        lastConfigured: undefined
-      })
+      console.error('检查Slack频道配置失败:', error)
     }
   }
 
-  // 数据源配置 - 按推荐顺序排列
   const dataSources = [
     {
       id: 'slack',
       name: 'Slack',
-      icon: Slack,
+      icon: MessageSquare,
       priority: 1,
       difficulty: 'easy',
-      setupTime: '1分钟',
-      badge: language === 'zh' ? '推荐' : 'Recommended',
-      badgeColor: 'bg-green-500',
-      title: 'Slack', // 直接使用第三方名称
+      setupTime: '2分钟',
+      badge: language === 'zh' ? '即时通讯' : 'Messaging',
+      badgeColor: 'bg-purple-600',
+      title: 'Slack',
       description: language === 'zh'
-        ? '团队沟通中心 - 连接Slack获取团队对话、决策和知识'
-        : 'Team Communication Hub - Connect Slack to access team conversations, decisions and knowledge',
+        ? '团队协作平台 - 实时消息、频道对话、文件共享'
+        : 'Team Collaboration Platform - Real-time messages, channel conversations, file sharing',
       benefits: [
         {
-          icon: MessageSquare,
-          text: language === 'zh' ? '实时消息同步' : 'Real-time message sync'
+          icon: MessageCircle,
+          text: language === 'zh' ? '实时消息' : 'Real-time messages'
         },
         {
-          icon: Users,
-          text: language === 'zh' ? '团队协作历史' : 'Team collaboration history'
+          icon: Hash,
+          text: language === 'zh' ? '频道对话' : 'Channel conversations'
         },
         {
-          icon: TrendingUp,
-          text: language === 'zh' ? '对话洞察分析' : 'Conversation insights'
+          icon: AtSign,
+          text: language === 'zh' ? '@提及追踪' : '@Mention tracking'
         }
       ],
       stats: {
-        channels: 12,
-        messages: '10k+',
-        users: 45
+        messages: '12.5k+',
+        channels: 45,
+        users: 128
       },
       color: 'from-purple-500 to-purple-600'
     },
     {
-      id: 'github',
-      name: 'GitHub',
-      icon: Github,
-      priority: 2,
-      difficulty: 'easy',
-      setupTime: '2分钟',
-      badge: language === 'zh' ? '简单' : 'Easy',
-      badgeColor: 'bg-blue-500',
-      title: 'GitHub',
-      description: language === 'zh'
-        ? '代码协作平台 - 追踪代码变更、PR和项目进展'
-        : 'Code Collaboration Platform - Track code changes, PRs and project progress',
-      benefits: [
-        {
-          icon: GitBranch,
-          text: language === 'zh' ? 'PR管理' : 'PR management'
-        },
-        {
-          icon: CheckCircle,
-          text: language === 'zh' ? 'Issue追踪' : 'Issue tracking'
-        },
-        {
-          icon: TrendingUp,
-          text: language === 'zh' ? '代码审查' : 'Code review'
-        }
-      ],
-      stats: {
-        repos: 8,
-        prs: 156,
-        issues: 89
-      },
-      color: 'from-gray-700 to-gray-900'
-    },
-    {
       id: 'jira',
       name: 'Jira',
-      icon: FileText,
-      priority: 3,
+      icon: ClipboardList,
+      priority: 2,
       difficulty: 'medium',
       setupTime: '5分钟',
-      badge: language === 'zh' ? '中等' : 'Medium',
-      badgeColor: 'bg-orange-500',
+      badge: language === 'zh' ? '项目管理' : 'Project',
+      badgeColor: 'bg-blue-600',
       title: 'Jira',
       description: language === 'zh'
-        ? '项目管理中心 - 管理任务、跟踪进度、生成报告'
-        : 'Project Management Hub - Manage tasks, track progress, generate reports',
+        ? '项目管理工具 - 任务跟踪、冲刺计划、问题管理'
+        : 'Project Management Tool - Task tracking, sprint planning, issue management',
       benefits: [
         {
-          icon: ListChecks,
-          text: language === 'zh' ? '任务管理' : 'Task management'
-        },
-        {
-          icon: TrendingUp,
-          text: language === 'zh' ? '进度追踪' : 'Progress tracking'
+          icon: ClipboardList,
+          text: language === 'zh' ? '任务追踪' : 'Task tracking'
         },
         {
           icon: Users,
-          text: language === 'zh' ? '工作流自动化' : 'Workflow automation'
+          text: language === 'zh' ? '团队协作' : 'Team collaboration'
+        },
+        {
+          icon: CalendarDays,
+          text: language === 'zh' ? '冲刺管理' : 'Sprint management'
         }
       ],
       stats: {
-        projects: 5,
-        tasks: 234,
-        sprints: 12
+        projects: 12,
+        issues: 456,
+        sprints: 8
       },
-      color: 'from-blue-600 to-blue-700'
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      id: 'gmail',
+      name: 'Gmail',
+      icon: Mail,
+      priority: 3,
+      difficulty: 'easy',
+      setupTime: '2分钟',
+      badge: language === 'zh' ? '邮件' : 'Email',
+      badgeColor: 'bg-red-600',
+      title: 'Gmail',
+      description: language === 'zh'
+        ? 'Google邮件服务 - 同步邮件、搜索内容、管理收件箱'
+        : 'Google Email Service - Sync emails, search content, manage inbox',
+      benefits: [
+        {
+          icon: Mail,
+          text: language === 'zh' ? '邮件同步' : 'Email sync'
+        },
+        {
+          icon: Search,
+          text: language === 'zh' ? '内容搜索' : 'Content search'
+        },
+        {
+          icon: FolderSync,
+          text: language === 'zh' ? '标签管理' : 'Label management'
+        }
+      ],
+      stats: {
+        emails: '5.2k',
+        unread: 23,
+        labels: 15
+      },
+      color: 'from-red-500 to-red-600'
+    },
+    {
+      id: 'google-drive',
+      name: 'Google Drive',
+      icon: FolderOpen,
+      priority: 4,
+      difficulty: 'easy',
+      setupTime: '2分钟',
+      badge: language === 'zh' ? '云盘' : 'Storage',
+      badgeColor: 'bg-blue-600',
+      title: 'Google Drive',
+      description: language === 'zh'
+        ? 'Google云端硬盘 - 访问文档、表格、演示文稿和文件'
+        : 'Google Cloud Storage - Access docs, sheets, presentations and files',
+      benefits: [
+        {
+          icon: FolderOpen,
+          text: language === 'zh' ? '文件访问' : 'File access'
+        },
+        {
+          icon: FileText,
+          text: language === 'zh' ? '文档搜索' : 'Document search'
+        },
+        {
+          icon: Share,
+          text: language === 'zh' ? '共享管理' : 'Share management'
+        }
+      ],
+      stats: {
+        files: 892,
+        folders: 67,
+        shared: 134
+      },
+      color: 'from-blue-500 to-blue-600'
+    },
+    {
+      id: 'google-calendar',
+      name: 'Google Calendar',
+      icon: Calendar,
+      priority: 5,
+      difficulty: 'easy',
+      setupTime: '2分钟',
+      badge: language === 'zh' ? '日历' : 'Calendar',
+      badgeColor: 'bg-green-600',
+      title: 'Google Calendar',
+      description: language === 'zh'
+        ? 'Google日历服务 - 管理日程、会议和提醒事项'
+        : 'Google Calendar Service - Manage schedules, meetings and reminders',
+      benefits: [
+        {
+          icon: Calendar,
+          text: language === 'zh' ? '日程管理' : 'Schedule management'
+        },
+        {
+          icon: Users,
+          text: language === 'zh' ? '会议安排' : 'Meeting scheduling'
+        },
+        {
+          icon: Clock,
+          text: language === 'zh' ? '提醒通知' : 'Reminders'
+        }
+      ],
+      stats: {
+        events: 234,
+        upcoming: 12,
+        calendars: 5
+      },
+      color: 'from-green-500 to-green-600'
     }
   ]
 
   const handleConnect = async (sourceId: string) => {
-    console.log('🔗 handleConnect被调用', { sourceId, showSlackManager })
     setSelectedSource(sourceId)
     
     if (sourceId === 'slack') {
-      // 显示高级Slack集成管理器
-      console.log('📱 显示Slack集成管理器')
       setShowSlackManager(true)
-      console.log('📱 setShowSlackManager(true)已调用')
       return
     }
 
-    // 其他数据源使用简单的连接流程
-    setIsConnecting(true)
-    setShowConnectionToast(true)
-    setConnectionError(null)
-
-    try {
-      // 其他数据源的模拟连接
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      setIsConnecting(false)
-      setConnectedSources([...connectedSources, sourceId])
-      setShowSuccess(true)
-      setTimeout(() => {
-        setShowSuccess(false)
-        setShowConnectionToast(false)
-      }, 3000)
-    } catch (error) {
-      setIsConnecting(false)
-      setConnectionError(error instanceof Error ? error.message : 'Connection failed')
-      setTimeout(() => {
-        setConnectionError(null)
-        setShowConnectionToast(false)
-      }, 5000)
-    }
-  }
-
-  const handleTryDemo = () => {
-    // 直接设置为演示连接成功
-    if (selectedSource) {
-      setIsConnecting(false)
+    if (sourceId === 'gmail') {
+      setIsConnecting(true)
       setConnectionError(null)
-      setConnectedSources([...connectedSources, selectedSource])
-      setShowSuccess(true)
-      setTimeout(() => {
-        setShowSuccess(false)
-        setShowConnectionToast(false)
-      }, 3000)
-    }
-  }
-
-
-  // Slack集成管理器回调
-  const handleSlackConfigChange = (config: any) => {
-    setSlackConfig(config)
-  }
-
-  const handleSlackStatusChange = (status: string) => {
-    if (status === 'connected') {
-      setConnectedSources([...connectedSources.filter(s => s !== 'slack'), 'slack'])
-      setShowSuccess(true)
-      setTimeout(() => {
-        setShowSuccess(false)
-      }, 5000)
-    } else if (status === 'disconnected') {
-      setConnectedSources(connectedSources.filter(s => s !== 'slack'))
-    }
-  }
-
-  // 断开连接处理
-  const handleDisconnect = async (sourceId: string) => {
-    try {
-      if (sourceId === 'slack') {
-        // 调用Slack断开连接API
-        const response = await fetch('/api/slack/disconnect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contextId })
-        })
+      
+      try {
+        const response = await fetch(`/api/gmail/auth?context_id=${contextId}`)
+        const data = await response.json()
         
-        if (response.ok) {
-          console.log('🔌 Slack连接已断开')
-          setConnectedSources(connectedSources.filter(s => s !== sourceId))
-          // 显示断开成功提示
-          setShowSuccess(false)
+        if (data.success && data.authUrl) {
+          window.location.href = data.authUrl
+        } else {
+          throw new Error(data.error || 'Failed to generate auth URL')
         }
-      } else {
-        // 其他数据源的断开逻辑
-        setConnectedSources(connectedSources.filter(s => s !== sourceId))
+      } catch (error) {
+        console.error('Gmail connection error:', error)
+        setConnectionError(language === 'zh' ? 'Gmail连接失败' : 'Gmail connection failed')
+        setIsConnecting(false)
       }
-    } catch (error) {
-      console.error('断开连接失败:', error)
-      setConnectionError('断开连接失败，请重试')
+      return
+    }
+
+    if (sourceId === 'google-drive') {
+      setIsConnecting(true)
+      setConnectionError(null)
+      
+      try {
+        const response = await fetch(`/api/google-drive/auth?context_id=${contextId}`)
+        const data = await response.json()
+        
+        if (data.success && data.authUrl) {
+          window.location.href = data.authUrl
+        } else {
+          throw new Error(data.error || 'Failed to generate auth URL')
+        }
+      } catch (error) {
+        console.error('Google Drive connection error:', error)
+        setConnectionError(language === 'zh' ? 'Google Drive连接失败' : 'Google Drive connection failed')
+        setIsConnecting(false)
+      }
+      return
+    }
+
+    if (sourceId === 'google-calendar') {
+      setIsConnecting(true)
+      setConnectionError(null)
+      
+      try {
+        const response = await fetch(`/api/google-calendar/auth?context_id=${contextId}`)
+        const data = await response.json()
+        
+        if (data.success && data.authUrl) {
+          window.location.href = data.authUrl
+        } else {
+          throw new Error(data.error || 'Failed to generate auth URL')
+        }
+      } catch (error) {
+        console.error('Google Calendar connection error:', error)
+        setConnectionError(language === 'zh' ? 'Google Calendar连接失败' : 'Google Calendar connection failed')
+        setIsConnecting(false)
+      }
+      return
+    }
+
+    // 其他数据源暂时显示提示
+    setShowSuccess(true)
+    setTimeout(() => {
+      setConnectedSources([...connectedSources, sourceId])
+      setShowSuccess(false)
+      setIsConnecting(false)
+    }, 2000)
+  }
+
+  const handleDisconnect = async (sourceId: string) => {
+    if (sourceId === 'gmail') {
+      try {
+        await fetch(`/api/gmail/status?context_id=${contextId}`, { method: 'DELETE' })
+        setConnectedSources(connectedSources.filter(id => id !== 'gmail'))
+      } catch (error) {
+        console.error('Disconnect Gmail failed:', error)
+      }
+    } else if (sourceId === 'google-drive') {
+      try {
+        await fetch(`/api/google-drive/status?context_id=${contextId}`, { method: 'DELETE' })
+        setConnectedSources(connectedSources.filter(id => id !== 'google-drive'))
+      } catch (error) {
+        console.error('Disconnect Google Drive failed:', error)
+      }
+    } else if (sourceId === 'google-calendar') {
+      try {
+        await fetch(`/api/google-calendar/status?context_id=${contextId}`, { method: 'DELETE' })
+        setConnectedSources(connectedSources.filter(id => id !== 'google-calendar'))
+      } catch (error) {
+        console.error('Disconnect Google Calendar failed:', error)
+      }
     }
   }
+
+  // 对数据源进行排序：已连接的放在前面
+  const sortedDataSources = [...dataSources].sort((a, b) => {
+    const aConnected = connectedSources.includes(a.id)
+    const bConnected = connectedSources.includes(b.id)
+    
+    if (aConnected && !bConnected) return -1
+    if (!aConnected && bConnected) return 1
+    
+    return a.priority - b.priority
+  })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* 状态刷新按钮 */}
+      <div className="flex justify-between items-center">
+        <div></div>
+        <Button
+          onClick={handleRefreshStatus}
+          disabled={isRefreshing || isLoadingConnections}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {language === 'zh' 
+            ? (isRefreshing ? '刷新中...' : '刷新状态') 
+            : (isRefreshing ? 'Refreshing...' : 'Refresh Status')}
+        </Button>
+      </div>
+      {/* 移除全局加载遮罩，改为按钮级别的加载状态 */}
 
       {/* 成功提示 */}
       {showSuccess && (
-        <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
-          <CheckCircle className="w-4 h-4 text-green-600" />
-          <AlertDescription className="text-green-800 dark:text-green-200">
-            {language === 'zh' 
-              ? '🎉 连接成功！AI Brain 正在同步数据...'
-              : '🎉 Connected successfully! AI Brain is syncing data...'}
-          </AlertDescription>
-        </Alert>
+        <div className="text-center text-green-600 dark:text-green-400 py-2">
+          {language === 'zh' 
+            ? '✅ 连接成功，正在同步数据...'
+            : '✅ Connected successfully, syncing data...'}
+        </div>
       )}
 
-      {/* 数据源卡片列表 */}
-      <div className="space-y-4">
-        {dataSources.map((source, index) => {
-          const Icon = source.icon
-          const isConnected = connectedSources.includes(source.id)
-          const isCurrentlyConnecting = selectedSource === source.id && isConnecting
-          const isSlackChecking = source.id === 'slack' && isCheckingConnection
-          
-          return (
-            <Card 
-              key={source.id}
-              className={`relative overflow-hidden transition-all duration-300 ${
-                isConnected 
-                  ? 'border-green-500 bg-green-50/50 dark:bg-green-950/10'
-                  : isSlackChecking 
-                  ? 'border-blue-300 bg-blue-50/30 dark:bg-blue-950/10' 
-                  : 'hover:shadow-lg hover:scale-[1.02]'
-              }`}
-            >
-              {/* 优先级标记 */}
-              {index === 0 && !isConnected && !isSlackChecking && (
-                <div className="absolute top-0 right-0 bg-gradient-to-l from-green-500 to-green-400 text-white px-4 py-1 rounded-bl-lg text-xs font-medium flex items-center gap-1">
-                  <Star className="w-3 h-3" />
-                  {language === 'zh' ? '建议首选' : 'Start Here'}
-                </div>
-              )}
-
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${source.color} flex items-center justify-center text-white shadow-lg`}>
-                      <Icon className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        {source.title}
-                        {isConnected && (
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        )}
-                        {isSlackChecking && (
-                          <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                        )}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {source.description}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {source.setupTime}
-                    </Badge>
-                    <Badge className={`${source.badgeColor} text-white`}>
-                      {source.badge}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  {/* 功能亮点 */}
-                  <div className="flex gap-6">
-                    {source.benefits.map((benefit, i) => {
-                      const BenefitIcon = benefit.icon
-                      return (
-                        <div key={i} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <BenefitIcon className="w-4 h-4 text-gray-400" />
-                          <span>{benefit.text}</span>
+      {/* 已连接的数据源 */}
+      {connectedSources.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-600" />
+            {language === 'zh' ? '已连接的数据源' : 'Connected Data Sources'}
+          </h3>
+          <div className="pl-6 border-l-2 border-green-200 dark:border-green-800 space-y-4">
+            {sortedDataSources.filter(s => connectedSources.includes(s.id)).map(source => {
+              const Icon = source.icon
+              
+              return (
+                <Card 
+                  key={source.id}
+                  className="relative overflow-hidden transition-all duration-300 border-green-500 bg-green-50/50 dark:bg-green-950/10"
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${source.color} flex items-center justify-center text-white shadow-lg`}>
+                          <Icon className="w-7 h-7" />
                         </div>
-                      )
-                    })}
-                  </div>
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {source.title}
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            {source.description}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
 
-                  {/* 连接按钮区域 */}
-                  <div className="flex gap-2">
-                    {source.id === 'slack' && !isConnected && !isSlackChecking ? (
-                      <>
-                        {/* Slack一键连接按钮 */}
-                        <Button
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-6">
+                        {source.benefits.map((benefit, i) => {
+                          const BenefitIcon = benefit.icon
+                          return (
+                            <div key={i} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <BenefitIcon className="w-4 h-4 text-gray-400" />
+                              <span>{benefit.text}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="default" 
+                          size="sm" 
                           onClick={() => {
-                            const oauthUrl = `/api/auth/slack/install?context_id=${contextId}`
-                            window.location.href = oauthUrl
+                            // Navigate to real-time messages page for the data source
+                            const routeMap: { [key: string]: string } = {
+                              'slack': `/contexts/${contextId}/slack/messages`,
+                              'gmail': `/contexts/${contextId}/gmail/messages`,
+                              'google-drive': `/contexts/${contextId}/google-drive/messages`,
+                              'google-calendar': `/contexts/${contextId}/google-calendar/messages`,
+                              'jira': `/contexts/${contextId}/jira/messages`,
+                              'github': `/contexts/${contextId}/github/messages`,
+                              'notion': `/contexts/${contextId}/notion/messages`
+                            }
+                            if (routeMap[source.id]) {
+                              window.location.href = routeMap[source.id]
+                            }
                           }}
-                          className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white flex-1"
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                         >
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          {language === 'zh' ? '一键连接' : 'Quick Connect'}
+                          <Monitor className="w-4 h-4 mr-1" />
+                          {language === 'zh' ? '查看实时状态' : 'View Real-time'}
                         </Button>
-                        {/* 高级配置按钮 */}
-                        <Button
-                          onClick={() => {
-                            console.log('🔧 点击高级配置按钮', { sourceId: source.id })
-                            handleConnect(source.id)
-                          }}
-                          variant="outline"
-                          className="px-3"
-                          title={language === 'zh' ? '高级配置' : 'Advanced Setup'}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDisconnect(source.id)}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
                         >
-                          <Settings className="w-4 h-4" />
+                          <XCircle className="w-4 h-4 mr-1" />
+                          {language === 'zh' ? '断开' : 'Disconnect'}
                         </Button>
-                      </>
-                    ) : source.id === 'slack' && isSlackChecking ? (
-                      /* Slack连接状态检查中 */
-                      <Button
-                        disabled={true}
-                        className="min-w-[140px] bg-blue-100 text-blue-700 border-blue-200"
-                      >
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {language === 'zh' ? '检查连接状态中...' : 'Checking connection...'}
-                      </Button>
-                    ) : (
-                      /* 其他数据源或已连接状态 */
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 可用的数据源 */}
+      {sortedDataSources.filter(s => !connectedSources.includes(s.id)).length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+            <ExternalLink className="w-4 h-4 text-blue-600" />
+            {language === 'zh' ? '可用的数据源' : 'Available Data Sources'}
+            {loadingButtons.size > 0 && (
+              <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+            )}
+          </h3>
+          <div className="space-y-4">
+            {sortedDataSources.filter(s => !connectedSources.includes(s.id)).map((source, index) => {
+              const Icon = source.icon
+              const isCurrentlyConnecting = selectedSource === source.id && isConnecting
+              const isCheckingStatus = loadingButtons.has(source.id)
+              const firstUnconnected = sortedDataSources.filter(s => !connectedSources.includes(s.id))[0]?.id === source.id
+              
+              return (
+                <Card 
+                  key={source.id}
+                  className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                >
+                  {firstUnconnected && (
+                    <div className="absolute top-0 right-0 bg-gradient-to-l from-green-500 to-green-400 text-white px-4 py-1 rounded-bl-lg text-xs font-medium flex items-center gap-1">
+                      <Star className="w-3 h-3" />
+                      {language === 'zh' ? '建议首选' : 'Start Here'}
+                    </div>
+                  )}
+
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${source.color} flex items-center justify-center text-white shadow-lg`}>
+                          <Icon className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <CardTitle>{source.title}</CardTitle>
+                          <CardDescription className="mt-1">
+                            {source.description}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {source.setupTime}
+                        </Badge>
+                        <Badge className={`${source.badgeColor} text-white`}>
+                          {source.badge}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-6">
+                        {source.benefits.map((benefit, i) => {
+                          const BenefitIcon = benefit.icon
+                          return (
+                            <div key={i} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                              <BenefitIcon className="w-4 h-4 text-gray-400" />
+                              <span>{benefit.text}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
                       <Button
                         onClick={() => handleConnect(source.id)}
-                        disabled={isConnected || isCurrentlyConnecting}
-                        className={`min-w-[140px] ${
-                          isConnected 
-                            ? 'bg-green-600 hover:bg-green-700' 
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                        }`}
+                        disabled={isCurrentlyConnecting || isCheckingStatus}
+                        className="min-w-[140px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                       >
                         {isCurrentlyConnecting ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             {language === 'zh' ? '连接中...' : 'Connecting...'}
                           </>
-                        ) : isConnected ? (
+                        ) : isCheckingStatus ? (
                           <>
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            {language === 'zh' ? '已连接' : 'Connected'}
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {language === 'zh' ? '检查状态中...' : 'Checking Status...'}
                           </>
                         ) : (
                           <>
@@ -517,169 +742,14 @@ export function DataSourceWizard({ contextId, onComplete }: DataSourceWizardProp
                           </>
                         )}
                       </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 连接后显示的数据统计 */}
-                {isConnected && (
-                  <div className="mt-4 pt-4 border-t space-y-4">
-                    {/* Slack频道未配置警告 */}
-                    {source.id === 'slack' && slackChannelStats && slackChannelStats.configuredChannels === 0 && (
-                      <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
-                        <AlertCircle className="w-4 h-4 text-orange-600" />
-                        <AlertDescription className="text-orange-800 dark:text-orange-200">
-                          {language === 'zh' 
-                            ? '⚠️ 尚未选择任何频道，请点击下方"选择频道"按钮进行配置'
-                            : '⚠️ No channels selected yet. Please click "Select Channels" below to configure'}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                    
-                    {/* 连接状态信息 */}
-                    {source.id === 'slack' && !slackChannelStats && (
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
-                          {language === 'zh' ? '加载配置信息中...' : 'Loading configuration...'}
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-blue-600 hover:text-blue-700"
-                          onClick={() => {
-                            if (source.id === 'slack') {
-                              window.location.href = `/contexts/${contextId}/slack/messages`
-                            } else {
-                              // 其他数据源的详情页面（未来实现）
-                              console.log(`View details for ${source.name}`)
-                            }
-                          }}
-                        >
-                          {source.id === 'slack' 
-                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
-                            : (language === 'zh' ? '查看详情' : 'View Details')
-                          }
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {source.id === 'slack' && slackChannelStats && slackChannelStats.configuredChannels > 0 && (
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="text-gray-500">{language === 'zh' ? '已配置频道：' : 'Configured Channels: '}</span>
-                          <span className="font-semibold text-blue-600">
-                            {slackChannelStats.configuredChannels}/{slackChannelStats.totalChannels}
-                          </span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-blue-600 hover:text-blue-700"
-                          onClick={() => {
-                            if (source.id === 'slack') {
-                              window.location.href = `/contexts/${contextId}/slack/messages`
-                            } else {
-                              // 其他数据源的详情页面（未来实现）
-                              console.log(`View details for ${source.name}`)
-                            }
-                          }}
-                        >
-                          {source.id === 'slack' 
-                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
-                            : (language === 'zh' ? '查看详情' : 'View Details')
-                          }
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    )}
-                    {source.id !== 'slack' && (
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm">
-                          <span className="text-gray-500">{language === 'zh' ? '连接状态：' : 'Connection: '}</span>
-                          <span className="font-semibold text-green-600">{language === 'zh' ? '正常' : 'Active'}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-blue-600 hover:text-blue-700"
-                          onClick={() => {
-                            if (source.id === 'slack') {
-                              window.location.href = `/contexts/${contextId}/slack/messages`
-                            } else {
-                              // 其他数据源的详情页面（未来实现）
-                              console.log(`View details for ${source.name}`)
-                            }
-                          }}
-                        >
-                          {source.id === 'slack' 
-                            ? (language === 'zh' ? 'Slack 消息' : 'Slack Messages')
-                            : (language === 'zh' ? '查看详情' : 'View Details')
-                          }
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {/* 连接管理按钮 */}
-                    <div className="flex items-center gap-2 pt-2">
-                      {source.id === 'slack' ? (
-                        <>
-                          <Button 
-                            onClick={() => {
-                              const channelSelectionUrl = `/contexts/${contextId}/slack/channels?team=${encodeURIComponent('AI Brain')}`
-                              window.location.href = channelSelectionUrl
-                            }}
-                            className={`${
-                              slackChannelStats?.configuredChannels > 0 
-                                ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800' 
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                            } text-white`}
-                            size="sm"
-                          >
-                            <MessageSquare className="w-4 h-4 mr-1" />
-                            {slackChannelStats?.configuredChannels > 0 
-                              ? (language === 'zh' ? '重新选择频道' : 'Reconfigure Channels')
-                              : (language === 'zh' ? '选择频道' : 'Select Channels')}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowSlackManager(true)}
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <Settings className="w-4 h-4 mr-1" />
-                            {language === 'zh' ? '管理配置' : 'Manage Config'}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleDisconnect(source.id)}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            {language === 'zh' ? '断开连接' : 'Disconnect'}
-                          </Button>
-                        </>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleDisconnect(source.id)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          {language === 'zh' ? '断开连接' : 'Disconnect'}
-                        </Button>
-                      )}
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 底部提示 */}
       <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
@@ -688,52 +758,20 @@ export function DataSourceWizard({ contextId, onComplete }: DataSourceWizardProp
           <strong>{language === 'zh' ? '💡 小贴士：' : '💡 Pro Tip: '}</strong>
           {language === 'zh' 
             ? '连接更多数据源，AI Brain 将提供更准确、更有价值的洞察。建议至少连接2个数据源以获得最佳体验。'
-            : 'Connect more data sources for more accurate and valuable insights. We recommend connecting at least 2 sources for the best experience.'}
+            : 'Connect more data sources to get more accurate and valuable insights from AI Brain. We recommend connecting at least 2 sources for the best experience.'}
         </AlertDescription>
       </Alert>
 
-      {/* 连接状态反馈 */}
-      {showConnectionToast && selectedSource && (
-        <ConnectionStatusToast
-          source={dataSources.find(s => s.id === selectedSource)?.name || selectedSource}
-          isConnecting={isConnecting}
-          isConnected={connectedSources.includes(selectedSource)}
-          error={connectionError || undefined}
-          onClose={() => setShowConnectionToast(false)}
-          onTryDemo={handleTryDemo}
+      {/* Slack集成管理器 */}
+      {/* {showSlackManager && (
+        <SlackIntegrationManager 
+          contextId={contextId}
+          onClose={() => {
+            setShowSlackManager(false)
+            checkAllConnectionStatuses()
+          }}
         />
-      )}
-
-      {/* Slack高级集成管理器 */}
-      {showSlackManager && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">
-                  {language === 'zh' ? 'Slack 高级集成配置' : 'Advanced Slack Integration'}
-                </h2>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowSlackManager(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </Button>
-              </div>
-              
-              <SlackIntegrationManager
-                contextId={contextId}
-                initialConfig={slackConfig}
-                onConfigChange={handleSlackConfigChange}
-                onStatusChange={handleSlackStatusChange}
-                onClose={() => setShowSlackManager(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      )} */}
     </div>
   )
 }

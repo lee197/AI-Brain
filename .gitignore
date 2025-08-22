@@ -47,3 +47,6 @@ next-env.d.ts
 # test and development files
 test-*.js
 monitor-*.js
+
+# data directory with user credentials and sensitive information
+/data/
