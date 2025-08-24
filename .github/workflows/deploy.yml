@@ -16,7 +16,6 @@ env:
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   # 基本配置
-  NEXT_PUBLIC_USE_MOCK_AUTH: true
   NEXT_PUBLIC_SITE_URL: https://ai-brain.vercel.app
 
 jobs:
@@ -65,7 +64,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_USE_MOCK_AUTH: true
           NEXT_PUBLIC_SITE_URL: https://ai-brain.vercel.app
 
       - name: 🚀 Deploy to Preview
@@ -147,7 +145,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          NEXT_PUBLIC_USE_MOCK_AUTH: true
           NEXT_PUBLIC_SITE_URL: https://ai-brain.vercel.app
 
       - name: 🚀 Deploy to Production
