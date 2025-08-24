@@ -45,7 +45,7 @@ export function saveChannelConfig(contextId: string, selectedChannels: string[])
   
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    let configs: ChannelConfig[] = stored ? JSON.parse(stored) : []
+    const configs: ChannelConfig[] = stored ? JSON.parse(stored) : []
     
     // 更新或添加配置
     const existingIndex = configs.findIndex(c => c.contextId === contextId)

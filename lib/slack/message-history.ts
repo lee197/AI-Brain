@@ -206,7 +206,7 @@ export function updateMessageHistory(
     const stored = localStorage.getItem(`${STORAGE_KEY}_${contextId}`)
     if (!stored) return
     
-    let history: SlackMessageHistory[] = JSON.parse(stored)
+    const history: SlackMessageHistory[] = JSON.parse(stored)
     const index = history.findIndex(record => record.id === messageId)
     
     if (index >= 0) {

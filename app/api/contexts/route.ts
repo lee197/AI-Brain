@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 获取team_members信息
-    let formattedContexts = []
+    const formattedContexts = []
     if (contexts && contexts.length > 0) {
       for (const ctx of contexts) {
         // 获取该Context的成员信息

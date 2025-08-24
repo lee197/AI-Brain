@@ -353,7 +353,7 @@ function buildEnhancedPrompt(userMessage: string, slackContext: string, gmailCon
   }
 
   // 构建多源上下文
-  let contextSections = []
+  const contextSections = []
   
   if (slackContext) {
     contextSections.push(`## 团队对话记录 (Slack)

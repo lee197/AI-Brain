@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. 获取对话历史（暂时跳过）
-    let conversationHistory = []
+    const conversationHistory = []
 
     // 5. 构建AI请求
     const aiResponse = await callAIService({

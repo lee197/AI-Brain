@@ -7,7 +7,7 @@ import path from 'path'
 
 // 服务端频道配置管理（简化版本）
 // 在生产环境中，这应该存储在数据库中
-let serverChannelConfig: { [contextId: string]: string[] } = {}
+const serverChannelConfig: { [contextId: string]: string[] } = {}
 
 /**
  * 设置服务端频道配置
@@ -97,7 +97,7 @@ function formatSlackMessage(text: string, options: MessageFormatOptions): string
   })
   
   // 处理特殊格式
-  let formattedText = text
+  const formattedText = text
     // 处理@用户提及
     .replace(/<@(\w+)>/g, '@$1')
     // 处理#频道提及  
