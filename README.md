@@ -10,6 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3+-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Deploy Status](https://img.shields.io/github/actions/workflow/status/lee197/AI-Brain/deploy.yml?style=for-the-badge&logo=github-actions&label=Deploy)](https://github.com/lee197/AI-Brain/actions)
 
 [🚀 在线体验](#-快速开始) • [📖 文档](#-项目文档) • [🎯 功能特性](#-核心功能) • [🛠️ 技术栈](#️-技术栈)
 
@@ -28,6 +29,10 @@ AI Brain 旨在革命性地改变企业团队的工作方式，通过智能化�
 - **👥 人机协作**: 人在回路的验证和持续学习机制
 - **🔄 实时同步**: 跨平台数据实时同步和更新
 - **🔒 权限控制**: 基于角色的安全访问控制
+
+## 🌐 在线访问
+
+🔗 **生产环境**: [https://ai-brain-jasons-projects-76b6cdcf.vercel.app](https://ai-brain-jasons-projects-76b6cdcf.vercel.app)
 
 ## 🚀 快速开始
 
