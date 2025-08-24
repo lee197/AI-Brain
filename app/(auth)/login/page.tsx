@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useActionState, useEffect, useState, useTransition } from 'react'
+import { Suspense, useActionState, useEffect, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +18,7 @@ const initialState = {
   errors: {},
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const [state, formAction] = useActionState(login, initialState)
   const [isPending, startTransition] = useTransition()
   const [isOAuthLoading, setIsOAuthLoading] = useState<'google' | 'github' | null>(null)
@@ -242,5 +242,13 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   )
 }
