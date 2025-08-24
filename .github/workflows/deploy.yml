@@ -61,6 +61,12 @@ jobs:
 
       - name: 🔨 Build Project
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_USE_MOCK_AUTH: true
+          NEXT_PUBLIC_SITE_URL: https://ai-brain.vercel.app
 
       - name: 🚀 Deploy to Preview
         id: deploy
@@ -137,6 +143,12 @@ jobs:
 
       - name: 🔨 Build Project
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_USE_MOCK_AUTH: true
+          NEXT_PUBLIC_SITE_URL: https://ai-brain.vercel.app
 
       - name: 🚀 Deploy to Production
         id: deploy
