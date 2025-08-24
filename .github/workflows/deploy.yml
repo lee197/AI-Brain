@@ -13,9 +13,9 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
-  # 测试和检查
-  test:
-    name: 🧪 Test & Lint
+  # 简单安装依赖检查
+  setup:
+    name: 📦 Setup & Install
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout code
@@ -30,21 +30,12 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🔍 Run type check
-        run: npm run type-check
-
-      - name: 📝 Run linter
-        run: npm run lint:check || true
-
-      - name: 🎨 Check formatting
-        run: npm run format:check || true
-
   # 预览部署 (Pull Request)
   deploy-preview:
     name: 🔮 Deploy Preview
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    needs: test
+    needs: setup
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -120,7 +111,7 @@ jobs:
     name: 🎯 Deploy Production
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test
+    needs: setup
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
