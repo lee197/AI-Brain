@@ -44,7 +44,7 @@ import {
   ChevronRight,
   RefreshCw
 } from 'lucide-react'
-// import SlackIntegrationManager from '@/components/slack/slack-integration-manager'
+import { SlackChannelSelector } from '@/components/slack/slack-channel-selector'
 
 // 定义连接状态的类型
 interface ConnectionStatus {
@@ -76,6 +76,7 @@ export default function DataSourceWizard() {
   const [isLoadingConnections, setIsLoadingConnections] = useState(true) // 添加全局加载状态
   const [isRefreshing, setIsRefreshing] = useState(false) // 手动刷新状态
   const [loadingButtons, setLoadingButtons] = useState<Set<string>>(new Set()) // 按钮级别的加载状态
+  const [showChannelSelector, setShowChannelSelector] = useState(false) // Slack频道选择器状态
 
   // 检查各个数据源的连接状态
   useEffect(() => {
@@ -105,10 +106,10 @@ export default function DataSourceWizard() {
         
         if (data.success && data.statuses) {
           // 处理Slack状态
-          if (data.statuses.slack && data.statuses.slack.connected) {
+          if (data.statuses.slack && data.statuses.slack.success && data.statuses.slack.config && data.statuses.slack.config.isConnected) {
             connected.push('slack')
             setSlackConnected(true)
-            setSlackConnectionStatus(data.statuses.slack)
+            setSlackConnectionStatus(data.statuses.slack.config)
           }
           
           // 处理Gmail状态
@@ -418,17 +419,18 @@ export default function DataSourceWizard() {
   ]
 
   const handleConnect = async (sourceId: string) => {
+    console.log(`🔗 开始连接数据源: ${sourceId}`)
     setSelectedSource(sourceId)
+    setIsConnecting(true)
+    setConnectionError(null)
     
     if (sourceId === 'slack') {
-      setShowSlackManager(true)
+      // Slack 使用 OAuth 连接
+      window.location.href = `/api/slack/auth?context_id=${contextId}`
       return
     }
 
     if (sourceId === 'gmail') {
-      setIsConnecting(true)
-      setConnectionError(null)
-      
       try {
         const response = await fetch(`/api/gmail/auth?context_id=${contextId}`)
         const data = await response.json()
@@ -447,9 +449,6 @@ export default function DataSourceWizard() {
     }
 
     if (sourceId === 'google-drive') {
-      setIsConnecting(true)
-      setConnectionError(null)
-      
       try {
         const response = await fetch(`/api/google-drive/auth?context_id=${contextId}`)
         const data = await response.json()
@@ -468,9 +467,6 @@ export default function DataSourceWizard() {
     }
 
     if (sourceId === 'google-calendar') {
-      setIsConnecting(true)
-      setConnectionError(null)
-      
       try {
         const response = await fetch(`/api/google-calendar/auth?context_id=${contextId}`)
         const data = await response.json()
@@ -487,18 +483,47 @@ export default function DataSourceWizard() {
       }
       return
     }
-
-    // 其他数据源暂时显示提示
-    setShowSuccess(true)
-    setTimeout(() => {
-      setConnectedSources([...connectedSources, sourceId])
-      setShowSuccess(false)
+    
+    if (sourceId === 'jira') {
+      // Jira 连接（暂未实现）
+      setConnectionError(language === 'zh' ? 'Jira 集成即将推出' : 'Jira integration coming soon')
       setIsConnecting(false)
-    }, 2000)
+      return
+    }
+    
+    if (sourceId === 'github') {
+      // GitHub 连接（暂未实现）
+      setConnectionError(language === 'zh' ? 'GitHub 集成即将推出' : 'GitHub integration coming soon')
+      setIsConnecting(false)
+      return
+    }
+    
+    if (sourceId === 'notion') {
+      // Notion 连接（暂未实现）
+      setConnectionError(language === 'zh' ? 'Notion 集成即将推出' : 'Notion integration coming soon')
+      setIsConnecting(false)
+      return
+    }
+
+    // 未知数据源
+    setConnectionError(language === 'zh' ? '未知的数据源' : 'Unknown data source')
+    setIsConnecting(false)
   }
 
   const handleDisconnect = async (sourceId: string) => {
-    if (sourceId === 'gmail') {
+    console.log(`🔌 断开数据源连接: ${sourceId}`)
+    
+    if (sourceId === 'slack') {
+      try {
+        await fetch(`/api/slack/disconnect?context_id=${contextId}`, { method: 'POST' })
+        setConnectedSources(connectedSources.filter(id => id !== 'slack'))
+        setSlackConnected(false)
+        setSlackConnectionStatus(null)
+        setSlackChannelStats(null)
+      } catch (error) {
+        console.error('Disconnect Slack failed:', error)
+      }
+    } else if (sourceId === 'gmail') {
       try {
         await fetch(`/api/gmail/status?context_id=${contextId}`, { method: 'DELETE' })
         setConnectedSources(connectedSources.filter(id => id !== 'gmail'))
@@ -611,6 +636,18 @@ export default function DataSourceWizard() {
                         })}
                       </div>
                       <div className="flex gap-2">
+                        {/* Slack特有的频道配置按钮 */}
+                        {source.id === 'slack' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowChannelSelector(true)}
+                            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                          >
+                            <Settings className="w-4 h-4 mr-1" />
+                            {language === 'zh' ? '配置频道' : 'Configure Channels'}
+                          </Button>
+                        )}
                         <Button 
                           variant="default" 
                           size="sm" 
@@ -751,6 +788,16 @@ export default function DataSourceWizard() {
         </div>
       )}
 
+      {/* 错误提示 */}
+      {connectionError && (
+        <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20 mb-4">
+          <XCircle className="w-4 h-4 text-red-600" />
+          <AlertDescription className="text-red-800 dark:text-red-200">
+            {connectionError}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* 底部提示 */}
       <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
         <AlertCircle className="w-4 h-4 text-blue-600" />
@@ -762,16 +809,20 @@ export default function DataSourceWizard() {
         </AlertDescription>
       </Alert>
 
-      {/* Slack集成管理器 */}
-      {/* {showSlackManager && (
-        <SlackIntegrationManager 
+      {/* Slack频道选择器 */}
+      {showChannelSelector && (
+        <SlackChannelSelector
+          isOpen={showChannelSelector}
+          onClose={() => setShowChannelSelector(false)}
           contextId={contextId}
-          onClose={() => {
-            setShowSlackManager(false)
+          onChannelsSelected={(channels) => {
+            console.log('频道选择完成:', channels)
+            setShowChannelSelector(false)
+            // 可选：刷新连接状态以显示最新的频道统计
             checkAllConnectionStatuses()
           }}
         />
-      )} */}
+      )}
     </div>
   )
 }

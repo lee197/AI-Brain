@@ -43,26 +43,27 @@ function isChannelAllowed(contextId: string, channelId: string): boolean {
  */
 function findContextByChannel(channelId: string): string | null {
   try {
-    const configDir = path.join(process.cwd(), '.slack-configs')
-    if (!fs.existsSync(configDir)) {
+    const contextsDir = path.join(process.cwd(), 'data', 'contexts')
+    if (!fs.existsSync(contextsDir)) {
       return null
     }
     
-    const configFiles = fs.readdirSync(configDir)
+    const contextDirs = fs.readdirSync(contextsDir)
     
-    for (const file of configFiles) {
-      if (file.endsWith('.json')) {
+    for (const contextId of contextDirs) {
+      const configPath = path.join(contextsDir, contextId, 'slack-config.json')
+      
+      if (fs.existsSync(configPath)) {
         try {
-          const configPath = path.join(configDir, file)
           const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'))
           
-          // 检查这个频道是否在配置的频道列表中
-          if (configData.configuredChannels && configData.configuredChannels.includes(channelId)) {
-            console.log(`✅ Found context ${file.replace('.json', '')} for channel ${channelId}`)
-            return file.replace('.json', '') // 返回contextId
+          // 检查这个context是否配置了Slack连接
+          if (configData.isConnected && configData.teamId) {
+            console.log(`✅ Found context ${contextId} with active Slack connection for channel ${channelId}`)
+            return contextId
           }
         } catch (error) {
-          console.error('Error reading config file:', file, error)
+          console.error(`Error reading config file for context ${contextId}:`, error)
         }
       }
     }

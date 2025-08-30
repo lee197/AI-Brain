@@ -4,7 +4,7 @@ import path from 'path'
 
 /**
  * 获取当前Slack配置信息
- * 用于在UI中显示实际的密钥信息
+ * 读取通过OAuth保存的Slack配置
  */
 export async function GET(req: NextRequest) {
   try {
@@ -18,48 +18,30 @@ export async function GET(req: NextRequest) {
       }, { status: 400 })
     }
 
-    // 从环境变量读取当前配置
-    const envPath = path.join(process.cwd(), '.env.local')
+    // 读取保存的 Slack 配置文件
+    const configDir = path.join(process.cwd(), 'data', 'contexts', contextId)
+    const configFile = path.join(configDir, 'slack-config.json')
     
-    if (!fs.existsSync(envPath)) {
+    if (!fs.existsSync(configFile)) {
       return NextResponse.json({
         success: false,
-        error: '未找到配置文件'
-      }, { status: 404 })
+        config: null,
+        error: 'Slack 尚未连接'
+      })
     }
 
-    const envContent = fs.readFileSync(envPath, 'utf8')
-    
-    // 解析环境变量
-    const botTokenMatch = envContent.match(/SLACK_BOT_TOKEN=(.+)/)
-    const signingSecretMatch = envContent.match(/SLACK_SIGNING_SECRET=(.+)/)
-    const clientIdMatch = envContent.match(/MASTER_SLACK_CLIENT_ID=(.+)/)
-    const clientSecretMatch = envContent.match(/MASTER_SLACK_CLIENT_SECRET=(.+)/)
+    // 读取配置文件
+    const configContent = fs.readFileSync(configFile, 'utf8')
+    const config = JSON.parse(configContent)
 
-    const botToken = botTokenMatch?.[1]?.trim() || ''
-    const signingSecret = signingSecretMatch?.[1]?.trim() || ''
-    const clientId = clientIdMatch?.[1]?.trim() || ''
-    const clientSecret = clientSecretMatch?.[1]?.trim() || ''
-
-    // 检查是否是有效的Slack配置
-    const hasValidConfig = botToken.startsWith('xoxb-') && 
-                          !botToken.includes('your-slack-bot-token') &&
-                          clientId && !clientId.includes('your-')
+    // 检查是否已连接
+    const hasValidConfig = config.isConnected && config.accessToken && config.teamId
 
     if (!hasValidConfig) {
-      // 返回更详细的错误信息用于调试
       return NextResponse.json({
         success: false,
-        error: '未找到有效的Slack配置',
-        debug: {
-          botTokenValid: botToken.startsWith('xoxb-'),
-          botTokenNotPlaceholder: !botToken.includes('your-slack-bot-token'),
-          clientIdExists: !!clientId,
-          clientIdNotPlaceholder: !clientId.includes('your-'),
-          botTokenLength: botToken.length,
-          clientIdLength: clientId.length,
-          contextId
-        }
+        config: null,
+        error: 'Slack 配置无效'
       })
     }
 
@@ -69,7 +51,7 @@ export async function GET(req: NextRequest) {
       const authResponse = await fetch('https://slack.com/api/auth.test', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${botToken}`,
+          'Authorization': `Bearer ${config.accessToken}`,
           'Content-Type': 'application/json'
         }
       })
@@ -80,7 +62,7 @@ export async function GET(req: NextRequest) {
         const teamResponse = await fetch('https://slack.com/api/team.info', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${botToken}`,
+            'Authorization': `Bearer ${config.accessToken}`,
             'Content-Type': 'application/json'
           }
         })
@@ -104,18 +86,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       config: {
-        botToken,
-        signingSecret,
-        clientId,
-        clientSecret,
-        workspaceName: workspaceInfo?.teamName,
-        teamId: workspaceInfo?.teamId,
+        accessToken: config.accessToken,
+        teamId: config.teamId,
+        teamName: config.teamName,
+        botUserId: config.botUserId,
+        scope: config.scope,
+        appId: config.appId,
+        connectedAt: config.connectedAt,
+        isConnected: config.isConnected,
+        // 添加从 API 获取的工作区信息
+        workspaceName: workspaceInfo?.teamName || config.teamName,
         teamDomain: workspaceInfo?.teamDomain,
         teamIcon: workspaceInfo?.teamIcon,
-        botUserId: workspaceInfo?.botUserId,
-        botUserName: workspaceInfo?.botUserName,
-        connectedAt: new Date().toISOString(),
-        isConnected: true
+        botUserName: workspaceInfo?.botUserName
       },
       workspace: workspaceInfo
     })

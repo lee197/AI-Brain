@@ -4,7 +4,18 @@ import { setServerChannelConfig } from '@/lib/slack/event-processor'
 
 export async function GET(req: NextRequest) {
   try {
-    const slackApi = new SlackWebApi()
+    const { searchParams } = new URL(req.url)
+    const contextId = searchParams.get('contextId')
+    
+    if (!contextId) {
+      return NextResponse.json({
+        success: false,
+        error: '缺少contextId参数',
+        channels: []
+      }, { status: 400 })
+    }
+
+    const slackApi = new SlackWebApi(contextId)
     
     // 获取所有可访问的频道和Bot已加入的频道
     const [allChannels, botChannels] = await Promise.all([

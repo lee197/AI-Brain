@@ -62,7 +62,7 @@ export function SlackChannelSelector({
     setError(null)
     
     try {
-      const response = await fetch('/api/slack/channels')
+      const response = await fetch(`/api/slack/channels?contextId=${contextId}`)
       const data = await response.json()
       
       if (data.success) {
