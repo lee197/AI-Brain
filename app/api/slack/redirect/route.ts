@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getEnvironmentConfig } from '@/lib/environment'
 
 /**
  * 通用 Slack OAuth 重定向处理器
@@ -10,10 +11,9 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url)
     const params = url.searchParams
     
-    // 构建回调 URL - 使用当前域名
-    const currentHost = req.headers.get('host') || 'localhost:3000'
-    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
-    const callbackUrl = new URL(`${protocol}://${currentHost}/api/slack/callback`)
+    // 使用智能环境检测构建回调 URL
+    const envConfig = getEnvironmentConfig()
+    const callbackUrl = new URL(`${envConfig.baseUrl}/api/slack/callback`)
     
     // 复制所有查询参数
     params.forEach((value, key) => {

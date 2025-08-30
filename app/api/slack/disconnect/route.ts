@@ -13,8 +13,24 @@ const disconnectRequestSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { contextId, permanent = false } = disconnectRequestSchema.parse(body)
+    // 支持从 URL 参数或 JSON body 获取参数
+    const { searchParams } = new URL(req.url)
+    const contextIdFromParams = searchParams.get('context_id')
+    
+    let contextId: string
+    let permanent = false
+    
+    if (contextIdFromParams) {
+      // 从 URL 参数获取
+      contextId = contextIdFromParams
+      permanent = searchParams.get('permanent') === 'true'
+    } else {
+      // 从 JSON body 获取
+      const body = await req.json()
+      const parsed = disconnectRequestSchema.parse(body)
+      contextId = parsed.contextId
+      permanent = parsed.permanent || false
+    }
     
     // 检查是否为演示模式
     const isDemoMode = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true'

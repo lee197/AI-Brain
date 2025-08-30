@@ -88,9 +88,15 @@ export default function ContextDashboardPage() {
       color: slackStatus === 'connected' ? 'text-green-500' : 
              slackStatus === 'loading' ? 'text-yellow-500' : 'text-gray-400'
     },
+    { 
+      name: 'Google Workspace', 
+      icon: FileText, 
+      status: 'connected',
+      color: 'text-green-500',
+      description: 'Gmail + Calendar + Drive (MCP)'
+    },
     { name: 'Jira', icon: FileText, status: 'syncing', color: 'text-yellow-500' },
     { name: 'GitHub', icon: Github, status: 'connected', color: 'text-green-500' },
-    { name: 'Google Drive', icon: FileText, status: 'error', color: 'text-red-500' },
   ]
 
   // Quick prompt suggestions
@@ -121,8 +127,8 @@ export default function ContextDashboardPage() {
     setIsSending(true)
 
     try {
-      // 优先尝试Gemini API，如果失败则使用原有的API
-      let response = await fetch('/api/ai/chat-gemini', {
+      // 优先尝试增强版 API (包含 MCP)，如果失败则使用 Gemini API，最后降级到原有API
+      let response = await fetch('/api/ai/chat-enhanced', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,10 +136,25 @@ export default function ContextDashboardPage() {
         body: JSON.stringify({
           message: messageContent,
           contextId: contextId,
+          includeGoogleWorkspace: true
         }),
       })
       
-      // 如果Gemini API失败，降级到原有API
+      // 如果增强版 API 失败，降级到 Gemini API
+      if (!response.ok) {
+        response = await fetch('/api/ai/chat-gemini', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: messageContent,
+            contextId: contextId,
+          }),
+        })
+      }
+      
+      // 如果还是失败，最后降级到原有API
       if (!response.ok) {
         response = await fetch('/api/ai/chat', {
           method: 'POST',

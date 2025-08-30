@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSlackRedirectUri } from '@/lib/environment'
 
 // Slack OAuth configuration
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID || '9357659075127.9357750428823'
@@ -12,15 +13,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Context ID is required' }, { status: 400 })
     }
 
-    // 获取当前访问的域名
-    const currentHost = req.headers.get('host') || 'localhost:3000'
-    
-    // 构建重定向 URL - 使用当前域名（无论是 Vercel 还是 localhost）
-    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
-    const SLACK_REDIRECT_URI = `${protocol}://${currentHost}/api/slack/redirect`
+    // 使用智能环境检测获取正确的重定向URI
+    const SLACK_REDIRECT_URI = getSlackRedirectUri(req)
     
     console.log('🔗 Redirect URI:', SLACK_REDIRECT_URI)
-    console.log('📍 Current host:', currentHost)
 
     // Generate a state parameter to prevent CSRF attacks
     const state = Buffer.from(JSON.stringify({ 

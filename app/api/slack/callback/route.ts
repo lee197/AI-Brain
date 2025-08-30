@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { getEnvironmentConfig, getSlackRedirectUri } from '@/lib/environment'
 
 // Slack OAuth configuration
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID || '9357659075127.9357750428823'
@@ -13,10 +14,9 @@ export async function GET(req: NextRequest) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
     
-    // 动态构建基础URL
-    const currentHost = req.headers.get('host') || 'localhost:3000'
-    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
-    const baseUrl = `${protocol}://${currentHost}`
+    // 使用智能环境检测
+    const envConfig = getEnvironmentConfig()
+    const baseUrl = envConfig.baseUrl
     
     // Handle OAuth errors
     if (error) {
@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
     
     const { contextId } = stateData
     
-    // 使用当前域名构建重定向URI
-    const SLACK_REDIRECT_URI = `${baseUrl}/api/slack/redirect`
+    // 使用智能环境检测获取重定向URI
+    const SLACK_REDIRECT_URI = getSlackRedirectUri(req)
     
     console.log('🔗 Using redirect URI for token exchange:', SLACK_REDIRECT_URI)
     

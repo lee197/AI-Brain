@@ -86,15 +86,74 @@ Deployment: Vercel Ready
 4. 自动降级机制 (API失败时优雅处理)
 ```
 
-#### 多源上下文整合
+#### 多源上下文整合 + MCP协议支持
 ```typescript
-// 支持的上下文源
-- Slack消息 (最近10条团队对话)
-- Gmail邮件 (AI智能筛选5封相关邮件)
-- 未来扩展: Jira、GitHub、Notion等
+// 已实现的上下文源
+- Slack消息 (最近10条团队对话) - 本地数据库集成
+- Google Workspace (通过MCP) - Gmail + Drive + Calendar
+- 未来扩展: Jira、GitHub、Notion等 (使用MCP标准协议)
+
+// MCP (Model Context Protocol) 集成架构
+External MCP Server → Session Management → Tool Execution → Context Building → AI Enhancement
 
 // 上下文构建流程
-User Input → Multi-Source Context → Enhanced Prompt → LLM → Structured Response
+User Input → Multi-Source Context (Slack + MCP) → Enhanced Prompt → LLM → Structured Response
+```
+
+### ✅ Google Workspace MCP集成 (100% 完成)
+
+#### MCP (Model Context Protocol) 标准实现
+```typescript
+// 核心MCP客户端: lib/mcp/google-workspace-client.ts
+- 完整的MCP 2024-11-05协议实现
+- 会话管理和初始化流程
+- 服务器端事件流解析
+- 错误处理和连接状态检测
+- 支持25+个Google Workspace工具
+```
+
+#### 实现的Google Workspace功能
+```typescript
+// Gmail工具集
+✅ search_gmail_messages       - 邮件搜索 (支持Gmail查询语法)
+✅ get_gmail_message_content   - 获取邮件详细内容
+✅ send_gmail_message         - 发送邮件和回复
+✅ draft_gmail_message        - 创建邮件草稿
+✅ manage_gmail_label         - 管理邮件标签
+✅ modify_gmail_message_labels - 批量标签操作
+
+// Google Drive工具集  
+✅ search_drive_files         - 文件搜索 (支持Drive查询语法)
+✅ get_drive_file_content     - 获取文件内容 (支持Docs/Sheets/PPT)
+✅ create_drive_file          - 创建新文件
+✅ list_drive_items           - 列出文件夹内容
+✅ get_drive_file_permissions - 获取文件权限信息
+
+// Google Calendar工具集
+✅ list_calendars             - 列出所有日历
+✅ get_events                 - 获取日程事件
+✅ create_event               - 创建新日程
+✅ update_event               - 更新日程事件
+✅ delete_event               - 删除日程事件
+```
+
+#### MCP服务器配置
+```bash
+# 安装和运行Google Workspace MCP服务器
+uvx google-workspace-mcp --tools gmail drive calendar --transport streamable-http
+
+# 服务器运行在: http://localhost:8000/mcp
+# 支持的传输协议: streamable-http (Server-Sent Events)
+# 认证方式: Google OAuth 2.0 (需要配置credentials.json)
+```
+
+#### AI聊天增强集成
+```typescript
+// Enhanced API端点: app/api/ai/chat-enhanced/route.ts
+- 智能上下文获取: 根据用户查询自动搜索相关Gmail/Drive/Calendar数据
+- 并行执行: 同时查询3个Google服务，优化响应时间
+- 上下文格式化: 将MCP数据转换为AI可理解的结构化文本
+- 错误优雅降级: MCP服务不可用时自动回退到标准AI回答
 ```
 
 ### ✅ Slack集成 (95% 完成)
@@ -364,12 +423,48 @@ cp .env.example .env.local
 # 3. 启动开发服务器
 npm run dev
 
-# 4. 访问应用
+# 4a. 本地开发测试
 open http://localhost:3000
 
-# 5. 使用演示账户登录
-# admin@aibrain.com / admin123
-# demo@aibrain.com / demo123
+# 4b. HTTPS开发测试 (推荐，用于Slack OAuth)
+# 启动ngrok隧道
+ngrok http 3000
+# 访问ngrok生成的HTTPS URL: https://[id].ngrok-free.app
+
+# 5. 使用演示账户登录 (详见下方演示账户信息)
+```
+
+## 🔗 开发环境配置
+
+### ngrok开发环境 (推荐)
+```bash
+# 当前ngrok隧道URL
+https://25c6f1ccf0bf.ngrok-free.app
+
+# 快速启动开发环境
+./scripts/dev-setup.sh ngrok
+
+# 环境变量配置
+USE_NGROK=true
+NGROK_URL=https://25c6f1ccf0bf.ngrok-free.app
+```
+
+### 演示账户信息
+```yaml
+管理员账户:
+  邮箱: admin@aibrain.com
+  密码: admin123
+  权限: 完整管理权限
+
+演示用户账户:  
+  邮箱: demo@aibrain.com
+  密码: demo123
+  权限: 标准用户权限
+
+测试工作空间:
+  ID: e7c5aa1e-de00-4327-81dd-cfeba3030081
+  名称: "AI Brain Demo"
+  类型: PROJECT
 ```
 
 ## 📋 核心功能使用指南
