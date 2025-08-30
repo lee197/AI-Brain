@@ -12,17 +12,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Context ID is required' }, { status: 400 })
     }
 
-    // 始终使用当前的 ngrok URL 进行重定向，这样 Slack App 中只需要配置一个固定的 URL
+    // 获取当前访问的域名
     const currentHost = req.headers.get('host') || 'localhost:3000'
     
-    // 如果是 localhost 访问，强制重定向到 ngrok URL 以保持一致性
-    if (currentHost.includes('localhost')) {
-      const ngrokUrl = process.env.NGROK_URL || 'https://25c6f1ccf0bf.ngrok-free.app'
-      return NextResponse.redirect(`${ngrokUrl}/api/slack/auth?context_id=${contextId}`)
-    }
-    
-    // 使用固定的 ngrok 重定向 URL（已在 Slack App 中配置）
-    const SLACK_REDIRECT_URI = `https://${currentHost}/api/slack/redirect`
+    // 构建重定向 URL - 使用当前域名（无论是 Vercel 还是 localhost）
+    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
+    const SLACK_REDIRECT_URI = `${protocol}://${currentHost}/api/slack/redirect`
     
     console.log('🔗 Redirect URI:', SLACK_REDIRECT_URI)
     console.log('📍 Current host:', currentHost)

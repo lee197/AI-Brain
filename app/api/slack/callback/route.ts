@@ -13,8 +13,10 @@ export async function GET(req: NextRequest) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
     
-    // Use fixed localhost for development
-    const baseUrl = 'http://localhost:3000'
+    // 动态构建基础URL
+    const currentHost = req.headers.get('host') || 'localhost:3000'
+    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
+    const baseUrl = `${protocol}://${currentHost}`
     
     // Handle OAuth errors
     if (error) {
@@ -37,9 +39,8 @@ export async function GET(req: NextRequest) {
     
     const { contextId } = stateData
     
-    // 始终使用 ngrok redirect URL，因为所有的 OAuth 流程都通过 ngrok 进行
-    const NGROK_URL = process.env.NGROK_URL || 'https://25c6f1ccf0bf.ngrok-free.app'
-    const SLACK_REDIRECT_URI = `${NGROK_URL}/api/slack/redirect`
+    // 使用当前域名构建重定向URI
+    const SLACK_REDIRECT_URI = `${baseUrl}/api/slack/redirect`
     
     console.log('🔗 Using redirect URI for token exchange:', SLACK_REDIRECT_URI)
     
