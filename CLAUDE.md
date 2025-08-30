@@ -321,22 +321,220 @@ ai-brain/
     └── global.d.ts               # 全局类型声明
 ```
 
-### 🔄 AI对话流程架构
+### 🏗️ 系统架构设计
 
-#### 消息处理管道
+### 多层级AI代理系统架构
 ```mermaid
-graph LR
-    A[用户输入] --> B[多源上下文聚合]
-    B --> C[Slack消息获取]
-    B --> D[Gmail智能筛选]
-    B --> E[其他数据源]
-    C --> F[增强提示构建]
-    D --> F
-    E --> F
-    F --> G[Gemini API调用]
-    G --> H[结构化响应生成]
-    H --> I[前端渲染]
+graph TB
+    subgraph "前端层 Frontend Layer"
+        WEB[Web App<br/>Next.js]
+        MOBILE[Mobile App<br/>React Native]
+        DESKTOP[Desktop App<br/>Electron]
+    end
+    
+    subgraph "API网关 API Gateway"
+        GW[API Gateway<br/>认证/路由/限流]
+        WS[WebSocket Server<br/>实时通信]
+    end
+    
+    subgraph "核心服务层 Core Services"
+        MA[Master Agent<br/>主协调器]
+        CM[Context Manager<br/>上下文管理]
+        WF[Workflow Engine<br/>工作流引擎]
+        AUTH[Auth Service<br/>认证服务]
+    end
+    
+    subgraph "SubAgent层 SubAgent Layer"
+        SA1[Slack SubAgent]
+        SA2[Jira SubAgent]
+        SA3[GitHub SubAgent]
+        SA4[Google SubAgent]
+        SA5[Notion SubAgent]
+        SA6[Custom SubAgents]
+    end
+    
+    subgraph "MCP服务层 MCP Server Layer"
+        MCP1[Slack MCP<br/>Official]
+        MCP2[Jira MCP<br/>Custom]
+        MCP3[GitHub MCP<br/>Official]
+        MCP4[Google MCP<br/>Official]
+        MCP5[Notion MCP<br/>Custom]
+        MCP6[More MCP Servers]
+    end
+    
+    subgraph "数据层 Data Layer"
+        PG[(PostgreSQL<br/>业务数据)]
+        REDIS[(Redis<br/>缓存/队列)]
+        VECTOR[(Vector DB<br/>Pinecone)]
+        S3[(S3/OSS<br/>文件存储)]
+        GRAPH[(Neo4j<br/>知识图谱)]
+    end
+    
+    subgraph "AI层 AI Layer"
+        LLM[LLM Gateway<br/>GPT-4/Claude/Gemini]
+        EMB[Embedding Service<br/>向量化]
+        ML[ML Models<br/>预测模型]
+    end
+    
+    WEB & MOBILE & DESKTOP --> GW
+    GW --> MA
+    WS --> MA
+    
+    MA --> CM
+    MA --> WF
+    MA --> AUTH
+    
+    MA --> SA1 & SA2 & SA3 & SA4 & SA5 & SA6
+    
+    SA1 --> MCP1
+    SA2 --> MCP2
+    SA3 --> MCP3
+    SA4 --> MCP4
+    SA5 --> MCP5
+    SA6 --> MCP6
+    
+    CM --> PG
+    CM --> REDIS
+    MA --> VECTOR
+    MA --> GRAPH
+    
+    SA1 & SA2 & SA3 --> LLM
+    SA1 & SA2 & SA3 --> EMB
+    WF --> ML
+    
+    style MA fill:#ff6b6b
+    style CM fill:#51cf66
+    style SA1 fill:#339af0
+    style SA2 fill:#339af0
+    style SA3 fill:#339af0
 ```
+
+### 🔄 架构分层详解
+
+#### 1. 前端层 (Frontend Layer)
+```yaml
+Web App (Next.js): 主要的Web界面 ✅
+Mobile App (React Native): 移动端应用 🔄
+Desktop App (Electron): 桌面客户端 🔄
+```
+**作用**: 多平台用户界面，统一的用户体验
+
+#### 2. API网关 (API Gateway)
+```yaml
+API Gateway: 统一入口，处理认证、路由、限流 ✅
+WebSocket Server: 实时通信，推送通知 🔄
+```
+**作用**: 请求分发、安全控制、实时连接管理
+
+#### 3. 核心服务层 (Core Services)
+```yaml
+Master Agent: 🧠 主协调器，负责任务分解和结果整合 ✅
+Context Manager: 📚 上下文管理，维护对话状态和工作空间 ✅
+Workflow Engine: ⚙️ 工作流引擎，自动化任务执行 🔄
+Auth Service: 🔐 认证服务，用户权限管理 ✅
+```
+**作用**: 系统核心逻辑，智能决策中心
+
+#### 4. SubAgent层 (子代理层)
+```yaml
+专业化子代理:
+- Slack SubAgent: 专门处理Slack相关任务 ✅
+- Jira SubAgent: 专门处理工单管理 🔄
+- GitHub SubAgent: 专门处理代码相关任务 🔄
+- Google SubAgent: 专门处理Google Workspace ✅
+- Notion SubAgent: 专门处理文档知识库 🔄
+- Custom SubAgents: 可扩展的自定义代理 🔄
+```
+**作用**: 垂直专业化，每个代理专精特定领域
+
+#### 5. MCP服务层 (Model Context Protocol)
+```yaml
+标准化集成协议:
+- Slack MCP: 官方MCP服务器 🔄
+- Jira MCP: 自定义MCP实现 🔄
+- GitHub MCP: 官方MCP服务器 🔄
+- Google MCP: 官方MCP服务器 ✅
+- Notion MCP: 自定义MCP实现 🔄
+```
+**作用**: 标准化的工具接口，可插拔的集成方式
+
+#### 6. 数据层 (Data Layer)
+```yaml
+PostgreSQL: 业务数据、用户信息、工作空间 ✅
+Redis: 缓存、队列、会话状态 🔄
+Vector DB (Pinecone): 语义搜索、RAG知识库 🔄
+S3/OSS: 文件存储、备份 🔄
+Neo4j: 知识图谱、关系映射 🔄
+```
+**作用**: 多种数据存储，支持不同场景需求
+
+#### 7. AI层 (AI Layer)
+```yaml
+LLM Gateway: 多模型调用（GPT-4/Claude/Gemini） ✅
+Embedding Service: 文本向量化服务 🔄
+ML Models: 预测模型、分类模型 🔄
+```
+**作用**: AI能力提供，智能分析和生成
+
+### 🔄 工作流程示例
+
+#### 用户请求: "帮我查看上周的Slack讨论，并创建相关的Jira工单"
+
+```typescript
+1. Frontend → API Gateway → Master Agent
+   用户请求进入主协调器
+
+2. Master Agent 分析任务，调用：
+   - Slack SubAgent: "获取上周讨论记录"
+   - Jira SubAgent: "准备创建工单"
+
+3. Slack SubAgent → Slack MCP
+   通过MCP协议获取Slack历史消息
+
+4. Context Manager 整合数据
+   将Slack数据结构化存储到PostgreSQL
+
+5. Master Agent → AI Layer
+   将整合的上下文发送给LLM分析
+
+6. AI分析后，Master Agent 再次调用：
+   Jira SubAgent → Jira MCP → 创建工单
+
+7. 结果返回给用户界面
+```
+
+### 🎯 当前实现状态对比
+
+#### ✅ 已实现 (当前AI Brain项目)
+```yaml
+Frontend Layer: Next.js Web App ✅
+简化版Master Agent: Context Manager + AI Chat ✅
+Google MCP集成: 完整的Google Workspace MCP ✅
+Slack集成: 直接API集成 (可升级为MCP) ✅
+Data Layer: Supabase PostgreSQL + File Storage ✅
+AI Layer: Gemini + OpenAI多模型支持 ✅
+```
+
+#### 🔄 可升级部分
+```yaml
+分离Master Agent: 将当前的聊天系统扩展为独立的协调服务
+添加SubAgent层: 为每个工具创建专门的子代理
+扩展MCP集成: 将Slack/Jira等也通过MCP标准化
+添加工作流引擎: 支持复杂的多步骤自动化任务
+Vector数据库: 实现RAG语义搜索
+实时WebSocket: 多用户协作功能
+```
+
+### 🎨 架构优势
+
+1. **模块化设计**: 每一层都可以独立开发、测试和扩展
+2. **专业化代理**: SubAgent专精特定领域，提供更好的处理能力
+3. **标准化协议**: MCP确保集成的一致性和可维护性
+4. **水平扩展**: 可以轻松添加新的工具和服务
+5. **容错能力**: 单个服务故障不影响整体系统
+6. **智能路由**: Master Agent智能决策任务分配
+
+这个架构为AI Brain的长期发展提供了清晰的升级路径。
 
 #### 多源上下文集成
 ```typescript
