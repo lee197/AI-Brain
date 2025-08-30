@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Vercel部署优化配置
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons']
+  }
 }
 
 export default nextConfig
