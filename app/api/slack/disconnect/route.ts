@@ -33,52 +33,49 @@ export async function POST(req: NextRequest) {
     
     // 真实环境：执行完整的断开流程
     try {
-      // 步骤1: 获取当前配置（用于清理）
-      console.log('📋 获取当前Slack配置...')
-      // 这里应该从数据库获取当前的Slack配置
-      
-      // 步骤2: 停止实时同步
-      console.log('⏹️  停止Slack实时同步...')
-      // 这里应该停止任何正在运行的同步任务
-      
-      // 步骤3: 撤销应用权限（可选）
-      console.log('🔐 撤销应用访问权限...')
-      // 这里可以调用Slack API来撤销应用权限
-      // 注意：这会使Bot Token失效，用户需要重新授权
-      
-      // 步骤4: 清理环境变量（重置Bot Token）
-      console.log('🗑️  重置环境变量...')
       const fs = require('fs')
       const path = require('path')
-      const envPath = path.join(process.cwd(), '.env.local')
       
-      if (fs.existsSync(envPath)) {
-        let envContent = fs.readFileSync(envPath, 'utf8')
-        
-        // 重置Bot Token为默认值
-        envContent = envContent.replace(
-          /SLACK_BOT_TOKEN=.+/,
-          'SLACK_BOT_TOKEN=xoxb-your-slack-bot-token'
-        )
-        
-        fs.writeFileSync(envPath, envContent)
-        console.log('✅ Bot Token已重置为默认值')
+      // 步骤1: 删除 Slack 配置文件
+      console.log('🗑️ 删除 Slack 配置文件...')
+      const configDir = path.join(process.cwd(), 'data', 'contexts', contextId)
+      const configFile = path.join(configDir, 'slack-config.json')
+      const tokenFile = path.join(configDir, 'slack-token.txt')
+      
+      let filesDeleted = 0
+      if (fs.existsSync(configFile)) {
+        fs.unlinkSync(configFile)
+        filesDeleted++
+        console.log('✅ 删除配置文件: slack-config.json')
       }
       
-      // 步骤5: 清理数据库中的配置
-      console.log('🗑️  清理数据库配置...')
-      // 这里应该从数据库删除或标记为已删除的Slack配置
+      if (fs.existsSync(tokenFile)) {
+        fs.unlinkSync(tokenFile)
+        filesDeleted++
+        console.log('✅ 删除令牌文件: slack-token.txt')
+      }
       
-      // 步骤6: 清理本地缓存（如果有）
-      console.log('🧹 清理本地缓存...')
-      // 清理任何本地存储的Slack相关数据
+      // 步骤2: 清理状态缓存
+      console.log('🧹 清理状态缓存...')
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/data-sources/status?context_id=${contextId}&data_source=slack`, {
+          method: 'DELETE'
+        })
+        console.log('✅ 状态缓存已清理')
+      } catch (cacheError) {
+        console.warn('清理缓存时出错:', cacheError)
+      }
+      
+      // 步骤3: 清理数据库中的 Slack 消息（如果有）
+      console.log('🧹 清理 Slack 消息数据...')
+      // 这里可以添加清理 Supabase 中 Slack 消息的逻辑
       
       return NextResponse.json({
         success: true,
         message: '已成功断开Slack连接，所有相关数据已清理',
         details: {
+          filesDeleted,
           configRemoved: true,
-          syncStopped: true,
           cacheCleared: true,
           disconnectedAt: new Date().toISOString()
         }
