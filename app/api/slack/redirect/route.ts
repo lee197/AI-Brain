@@ -10,15 +10,17 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url)
     const params = url.searchParams
     
-    // 构建回调 URL - 始终使用 localhost
-    const callbackUrl = new URL('http://localhost:3000/api/slack/callback')
+    // 构建回调 URL - 使用当前域名
+    const currentHost = req.headers.get('host') || 'localhost:3000'
+    const protocol = currentHost.includes('localhost') ? 'http' : 'https'
+    const callbackUrl = new URL(`${protocol}://${currentHost}/api/slack/callback`)
     
     // 复制所有查询参数
     params.forEach((value, key) => {
       callbackUrl.searchParams.set(key, value)
     })
     
-    console.log('🔄 Redirecting from universal handler to localhost callback:', callbackUrl.toString())
+    console.log('🔄 Redirecting from universal handler to callback:', callbackUrl.toString())
     
     // 重定向到本地回调处理器
     return NextResponse.redirect(callbackUrl.toString())
