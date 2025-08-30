@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
   })
 
   // 公共路由列表 (包括首页营销页面)
-  const publicRoutes = ['/', '/login', '/signup', '/ui-demo']
+  const publicRoutes = ['/', '/login', '/signup', '/ui-demo', '/oauth-success', '/mcp-auth-success']
   const isPublicRoute = publicRoutes.some(route => 
     request.nextUrl.pathname === route || 
     (route !== '/' && request.nextUrl.pathname.startsWith(route))

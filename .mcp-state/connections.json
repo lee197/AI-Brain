@@ -1,0 +1,18 @@
+{
+  "connections": [
+    {
+      "contextId": "e7c5aa1e-de00-4327-81dd-cfeba3030081",
+      "sourceType": "google-workspace-mcp",
+      "connected": true,
+      "connectedAt": "2025-08-30T17:38:48.366Z",
+      "lastActivity": "2025-08-30T20:36:34.323Z"
+    },
+    {
+      "contextId": "test",
+      "sourceType": "google-workspace-mcp",
+      "connected": true,
+      "connectedAt": "2025-08-30T17:51:06.144Z",
+      "lastActivity": "2025-08-30T17:54:17.438Z"
+    }
+  ]
+}

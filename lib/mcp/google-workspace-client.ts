@@ -158,7 +158,7 @@ export class GoogleWorkspaceMCPClient {
   /**
    * 发送 MCP 请求
    */
-  private async sendRequest(method: string, params?: any): Promise<any> {
+  async sendRequest(method: string, params?: any): Promise<any> {
     // Initialize connection if not already done
     if (!this.initialized) {
       await this.initialize()
@@ -261,14 +261,20 @@ export class GoogleWorkspaceMCPClient {
   async searchGmail(query: string, maxResults: number = 10): Promise<GmailMessage[]> {
     try {
       const result = await this.sendRequest('tools/call', {
-        name: 'gmail_search',
+        name: 'search_gmail_messages',
         arguments: {
           query,
-          max_results: maxResults
+          user_google_email: 'leeqii197@gmail.com'
         }
       })
 
-      return this.formatGmailMessages(result?.messages || [])
+      // Parse the text response from MCP to extract message data
+      let messages: GmailMessage[] = []
+      if (result?.content?.[0]?.text) {
+        messages = await this.parseGmailSearchResult(result.content[0].text)
+      }
+      
+      return messages
     } catch (error) {
       console.warn('Gmail search failed:', error)
       return []
@@ -291,26 +297,68 @@ export class GoogleWorkspaceMCPClient {
   }
 
   /**
+   * 获取日历列表
+   */
+  async listCalendars(): Promise<any[]> {
+    try {
+      const result = await this.sendRequest('tools/call', {
+        name: 'list_calendars',
+        arguments: {
+          user_google_email: 'leeqii197@gmail.com'
+        }
+      })
+
+      console.log('📅 Calendar list result:', result)
+      return result?.calendars || []
+    } catch (error) {
+      console.warn('Calendar list fetch failed:', error)
+      return []
+    }
+  }
+
+  /**
    * 获取日历事件
    */
   async getCalendarEvents(timeMin?: string, maxResults: number = 10): Promise<CalendarEvent[]> {
     try {
       const params: any = {
-        max_results: maxResults
+        user_google_email: 'leeqii197@gmail.com'
       }
 
       if (timeMin) {
         params.time_min = timeMin
       } else {
-        params.time_min = new Date().toISOString()
+        // 获取过去7天到未来30天的事件
+        const pastWeek = new Date()
+        pastWeek.setDate(pastWeek.getDate() - 7)
+        params.time_min = pastWeek.toISOString()
+        
+        const future30Days = new Date()
+        future30Days.setDate(future30Days.getDate() + 30)
+        params.time_max = future30Days.toISOString()
       }
 
       const result = await this.sendRequest('tools/call', {
-        name: 'calendar_list_events',
+        name: 'get_events',
         arguments: params
       })
 
-      return this.formatCalendarEvents(result?.events || [])
+      console.log('📅 MCP Calendar raw result:', JSON.stringify(result, null, 2))
+      
+      // Try to parse events from different possible structures
+      let events = []
+      if (result?.events) {
+        events = result.events
+      } else if (result?.content?.[0]?.text) {
+        // Parse from text content format
+        const textContent = result.content[0].text
+        console.log('📅 Calendar text content:', textContent)
+        events = this.parseCalendarTextResponse(textContent)
+      } else if (Array.isArray(result)) {
+        events = result
+      }
+
+      return this.formatCalendarEvents(events)
     } catch (error) {
       console.warn('Calendar events fetch failed:', error)
       return []
@@ -323,14 +371,29 @@ export class GoogleWorkspaceMCPClient {
   async searchDrive(query: string, maxResults: number = 10): Promise<DriveFile[]> {
     try {
       const result = await this.sendRequest('tools/call', {
-        name: 'drive_search',
+        name: 'search_drive_files',
         arguments: {
           query,
-          page_size: maxResults
+          user_google_email: 'leeqii197@gmail.com'
         }
       })
 
-      return this.formatDriveFiles(result?.files || [])
+      console.log('📁 MCP Drive raw result:', JSON.stringify(result, null, 2))
+      
+      // Try to parse files from different possible structures
+      let files = []
+      if (result?.files) {
+        files = result.files
+      } else if (result?.content?.[0]?.text) {
+        // Parse from text content format
+        const textContent = result.content[0].text
+        console.log('📁 Drive text content:', textContent)
+        files = this.parseDriveTextResponse(textContent)
+      } else if (Array.isArray(result)) {
+        files = result
+      }
+
+      return this.formatDriveFiles(files)
     } catch (error) {
       console.warn('Drive search failed:', error)
       return []
@@ -475,5 +538,196 @@ export class GoogleWorkspaceMCPClient {
     }
 
     return `${size.toFixed(1)} ${units[unitIndex]}`
+  }
+
+  /**
+   * 解析MCP Gmail搜索结果文本，并获取详细内容
+   */
+  private async parseGmailSearchResult(text: string): Promise<GmailMessage[]> {
+    const messages: GmailMessage[] = []
+    
+    // 匹配消息ID的正则表达式
+    const messageMatches = text.match(/Message ID: ([a-f0-9]+)/g)
+    
+    if (messageMatches) {
+      // 提取所有Message ID
+      const messageIds = messageMatches.map(match => match.replace('Message ID: ', ''))
+      
+      // 批量获取消息详细内容
+      try {
+        const detailedMessages = await this.getGmailMessagesContent(messageIds)
+        return detailedMessages
+      } catch (error) {
+        console.warn('Failed to get Gmail message details:', error)
+        
+        // 如果获取详细内容失败，返回基本信息
+        messageIds.forEach((messageId, index) => {
+          messages.push({
+            id: messageId,
+            subject: `Gmail Message ${index + 1}`,
+            from: 'sender@example.com',
+            to: 'leeqii197@gmail.com',
+            date: new Date().toISOString(),
+            snippet: `Message ID: ${messageId}`,
+            isRead: true,
+            isImportant: false,
+            labels: ['INBOX']
+          })
+        })
+      }
+    }
+    
+    return messages
+  }
+
+  /**
+   * 解析MCP Calendar文本响应
+   */
+  private parseCalendarTextResponse(text: string): any[] {
+    const events: any[] = []
+    
+    // 匹配每个事件的正则表达式
+    // Format: - "Event Title" (Starts: datetime, Ends: datetime) ID: eventId | Link: url
+    const eventPattern = /- "([^"]+)" \(Starts: ([^,]+), Ends: ([^)]+)\) ID: (\w+)/g
+    
+    let match
+    while ((match = eventPattern.exec(text)) !== null) {
+      const [, title, startTime, endTime, eventId] = match
+      
+      events.push({
+        id: eventId,
+        summary: title,
+        start: { dateTime: startTime },
+        end: { dateTime: endTime },
+        attendees: [],
+        location: null,
+        description: null
+      })
+    }
+    
+    console.log(`📅 Parsed ${events.length} calendar events from text response`)
+    return events
+  }
+
+  /**
+   * 解析MCP Drive文本响应
+   */
+  private parseDriveTextResponse(text: string): any[] {
+    const files: any[] = []
+    
+    // 如果文本说没有找到文件
+    if (text.includes('No files found') || text.includes('没有找到文件')) {
+      return files
+    }
+    
+    // 匹配每个文件的正则表达式
+    // Format: - Name: "filename" (ID: fileId, Type: mimeType, Size: bytes, Modified: datetime) Link: url
+    const filePattern = /- Name: "([^"]+)" \(ID: ([^,]+), Type: ([^,]+), Size: (\d+), Modified: ([^)]+)\) Link: (.+)/g
+    
+    let match
+    while ((match = filePattern.exec(text)) !== null) {
+      const [, name, fileId, mimeType, size, modifiedTime, webViewLink] = match
+      
+      files.push({
+        id: fileId,
+        name: name,
+        mimeType: mimeType,
+        size: parseInt(size),
+        modifiedTime: modifiedTime,
+        webViewLink: webViewLink,
+        ownedByMe: true // 假设从用户Drive中获取的都是自己的文件
+      })
+    }
+    
+    console.log(`📁 Parsed ${files.length} drive files from text response`)
+    return files
+  }
+
+  /**
+   * 批量获取Gmail消息详细内容
+   */
+  private async getGmailMessagesContent(messageIds: string[]): Promise<GmailMessage[]> {
+    const result = await this.sendRequest('tools/call', {
+      name: 'get_gmail_messages_content_batch',
+      arguments: {
+        message_ids: messageIds,
+        user_google_email: 'leeqii197@gmail.com'
+      }
+    })
+
+    // 解析详细消息内容
+    return this.parseDetailedGmailMessages(result, messageIds)
+  }
+
+  /**
+   * 解析详细的Gmail消息内容
+   */
+  private parseDetailedGmailMessages(result: any, messageIds: string[]): GmailMessage[] {
+    const messages: GmailMessage[] = []
+
+    if (result?.content?.[0]?.text) {
+      const content = result.content[0].text
+      
+      // 尝试解析每条消息的详细信息
+      messageIds.forEach((messageId, index) => {
+        // 查找这条消息的详细信息
+        const messageMatch = content.match(new RegExp(`Message ID: ${messageId}[\\s\\S]*?(?=Message ID:|$)`, 'i'))
+        
+        let subject = `Gmail Message ${index + 1}`
+        let from = 'sender@example.com'
+        let snippet = `Message ID: ${messageId}`
+        let date = new Date().toISOString()
+        let isRead = true
+        let isImportant = false
+        
+        if (messageMatch) {
+          const messageText = messageMatch[0]
+          
+          // 提取主题
+          const subjectMatch = messageText.match(/Subject:\s*(.+)/i)
+          if (subjectMatch) {
+            subject = subjectMatch[1].trim()
+          }
+          
+          // 提取发件人
+          const fromMatch = messageText.match(/From:\s*(.+)/i)
+          if (fromMatch) {
+            from = fromMatch[1].trim()
+          }
+          
+          // 提取预览内容
+          const snippetMatch = messageText.match(/Snippet:\s*(.+)/i)
+          if (snippetMatch) {
+            snippet = snippetMatch[1].trim()
+          }
+          
+          // 提取日期
+          const dateMatch = messageText.match(/Date:\s*(.+)/i)
+          if (dateMatch) {
+            date = new Date(dateMatch[1].trim()).toISOString()
+          }
+          
+          // 检查是否已读
+          isRead = !messageText.toLowerCase().includes('unread')
+          
+          // 检查是否重要
+          isImportant = messageText.toLowerCase().includes('important')
+        }
+        
+        messages.push({
+          id: messageId,
+          subject,
+          from,
+          to: 'leeqii197@gmail.com',
+          date,
+          snippet,
+          isRead,
+          isImportant,
+          labels: ['INBOX']
+        })
+      })
+    }
+    
+    return messages
   }
 }

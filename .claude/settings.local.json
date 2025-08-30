@@ -3,7 +3,8 @@
     "allow": [
       "Bash(code:*)",
       "Bash(pip3 install:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(uvx workspace-mcp:*)"
     ],
     "deny": [],
     "ask": []

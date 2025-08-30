@@ -22,6 +22,13 @@ export default function ContextSettingsPage() {
   
   const contextId = params.id as string
   
+  // 保存当前contextId到localStorage，用于OAuth回调
+  useEffect(() => {
+    if (contextId) {
+      localStorage.setItem('lastContextId', contextId)
+    }
+  }, [contextId])
+  
 
   if (loading) {
     return (

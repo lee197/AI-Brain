@@ -85,7 +85,7 @@ export default function DataSourceWizard() {
 
   const checkAllConnectionStatuses = async () => {
     // 设置所有按钮的加载状态
-    const dataSourceIds = ['slack', 'gmail', 'google-drive', 'google-calendar', 'jira']
+    const dataSourceIds = ['slack', 'gmail', 'google-drive', 'google-calendar', 'google-workspace-mcp', 'jira']
     setLoadingButtons(new Set(dataSourceIds.filter(id => !connectedSources.includes(id))))
     setIsLoadingConnections(true) // 开始加载
     const connected: string[] = []
@@ -125,6 +125,21 @@ export default function DataSourceWizard() {
           // 处理Google Calendar状态
           if (data.statuses.googleCalendar && data.statuses.googleCalendar.connected) {
             connected.push('google-calendar')
+          }
+
+          // 处理MCP Google Workspace状态
+          // 注意：MCP状态需要单独检查，不在批量API中
+          try {
+            const mcpResponse = await fetch(`/api/mcp/google-workspace/status?context_id=${contextId}`)
+            if (mcpResponse.ok) {
+              const mcpData = await mcpResponse.json()
+              if (mcpData.connected && mcpData.mcpIntegration) {
+                connected.push('google-workspace-mcp')
+                console.log('✅ MCP Google Workspace 已连接:', mcpData)
+              }
+            }
+          } catch (mcpError) {
+            console.log('⚠️ MCP Google Workspace 状态检查失败:', mcpError)
           }
           
           // 显示性能信息
@@ -202,6 +217,20 @@ export default function DataSourceWizard() {
       }
     } catch (error) {
       console.error('检查Google Calendar连接状态失败:', error)
+    }
+
+    // 检查MCP Google Workspace连接状态
+    try {
+      const mcpResponse = await fetch(`/api/mcp/google-workspace/status?context_id=${contextId}`)
+      if (mcpResponse.ok) {
+        const mcpData = await mcpResponse.json()
+        if (mcpData.connected && mcpData.mcpIntegration) {
+          connected.push('google-workspace-mcp')
+          console.log('✅ MCP Google Workspace 已连接 (单独检查):', mcpData)
+        }
+      }
+    } catch (error) {
+      console.error('检查MCP Google Workspace连接状态失败:', error)
     }
   }
 
@@ -415,6 +444,40 @@ export default function DataSourceWizard() {
         calendars: 5
       },
       color: 'from-green-500 to-green-600'
+    },
+    {
+      id: 'google-workspace-mcp',
+      name: 'Google Workspace (MCP)',
+      icon: BrainCircuit,
+      priority: 0, // Highest priority
+      difficulty: 'advanced',
+      setupTime: '3分钟',
+      badge: language === 'zh' ? 'MCP集成' : 'MCP Integration',
+      badgeColor: 'bg-gradient-to-r from-blue-600 to-purple-600',
+      title: 'Google Workspace (MCP)',
+      description: language === 'zh'
+        ? '🚀 MCP协议集成 - Gmail + Drive + Calendar 统一管理，AI原生集成'
+        : '🚀 MCP Protocol Integration - Gmail + Drive + Calendar unified, AI-native integration',
+      benefits: [
+        {
+          icon: BrainCircuit,
+          text: language === 'zh' ? 'AI原生协议' : 'AI-native protocol'
+        },
+        {
+          icon: Zap,
+          text: language === 'zh' ? '统一管理' : 'Unified management'
+        },
+        {
+          icon: Star,
+          text: language === 'zh' ? '25+工具集成' : '25+ tools integrated'
+        }
+      ],
+      stats: {
+        tools: '25+',
+        services: 3,
+        protocol: 'MCP 2.0'
+      },
+      color: 'from-blue-500 via-purple-500 to-indigo-600'
     }
   ]
 
@@ -483,6 +546,106 @@ export default function DataSourceWizard() {
       }
       return
     }
+
+    if (sourceId === 'google-workspace-mcp') {
+      try {
+        console.log('🚀 Starting MCP Google Workspace integration...')
+        const response = await fetch(`/api/mcp/google-workspace/auth?context_id=${contextId}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          if (data.authUrl) {
+            // Open OAuth in new window and show instructions
+            const authWindow = window.open(data.authUrl, 'oauth', 'width=500,height=600,scrollbars=yes')
+            
+            // Show instruction message
+            setConnectionError(
+              language === 'zh' 
+                ? '🔓 请在弹出窗口中完成Google认证，完成后窗口会自动关闭。我们将自动检测认证状态。\n\n如果弹窗被阻止，请点击浏览器地址栏的弹窗阻止图标允许弹窗。'
+                : '🔓 Please complete Google authentication in the popup window. The window will close automatically when done. We will detect the authentication status automatically.\n\nIf popup is blocked, please click the popup blocked icon in your browser\'s address bar to allow popups.'
+            )
+            
+            // Start checking auth status every 2 seconds
+            const authCheckInterval = setInterval(async () => {
+              try {
+                const statusResponse = await fetch(`/api/mcp/google-workspace/check-auth?context_id=${contextId}`)
+                const statusData = await statusResponse.json()
+                
+                if (statusData.success && statusData.authenticated) {
+                  clearInterval(authCheckInterval)
+                  if (authWindow && !authWindow.closed) {
+                    authWindow.close()
+                  }
+                  setShowConnectionToast(true)
+                  setConnectionError(null)
+                  setIsConnecting(false)
+                  await checkAllConnectionStatuses()
+                }
+              } catch (error) {
+                console.log('Auth check error:', error)
+              }
+            }, 2000)
+            
+            // Stop checking after 5 minutes
+            setTimeout(() => {
+              clearInterval(authCheckInterval)
+              if (authWindow && !authWindow.closed) {
+                authWindow.close()
+              }
+              if (isConnecting) {
+                setConnectionError(
+                  language === 'zh' 
+                    ? '认证超时，请重试。如果问题持续，请刷新页面。'
+                    : 'Authentication timeout, please retry. If the problem persists, please refresh the page.'
+                )
+                setIsConnecting(false)
+              }
+            }, 300000) // 5 minutes
+          } else if (data.authenticated) {
+            // Already authenticated
+            setShowConnectionToast(true)
+            setConnectionError(null)
+            setIsConnecting(false)
+            await checkAllConnectionStatuses() // Refresh status
+          } else {
+            // Check MCP server instructions
+            console.log('MCP result:', data)
+            setConnectionError(
+              language === 'zh' 
+                ? `MCP集成提示: ${data.message || '请查看服务器日志获取认证指引'}` 
+                : `MCP Integration: ${data.message || 'Check server logs for authentication instructions'}`
+            )
+            setIsConnecting(false)
+          }
+        } else {
+          // Handle specific MCP configuration errors
+          if (data.error === 'MCP OAuth Configuration Missing') {
+            const instructions = data.instructions?.join('\n') || ''
+            setConnectionError(
+              language === 'zh' 
+                ? `MCP OAuth 配置缺失：\n\n${data.details}\n\n配置步骤：\n${instructions.replace(/\d\./g, '• ')}`
+                : `MCP OAuth Configuration Missing:\n\n${data.details}\n\nSetup Steps:\n${instructions.replace(/\d\./g, '• ')}`
+            )
+          } else {
+            setConnectionError(
+              language === 'zh' 
+                ? `MCP集成错误: ${data.error}\n${data.message || ''}`
+                : `MCP Integration Error: ${data.error}\n${data.message || ''}`
+            )
+          }
+          setIsConnecting(false)
+        }
+      } catch (error) {
+        console.error('MCP Google Workspace connection error:', error)
+        setConnectionError(
+          language === 'zh' 
+            ? 'MCP Google Workspace连接失败 - 请确保MCP服务器正在运行'
+            : 'MCP Google Workspace connection failed - Please ensure MCP server is running'
+        )
+        setIsConnecting(false)
+      }
+      return
+    }
     
     if (sourceId === 'jira') {
       // Jira 连接（暂未实现）
@@ -543,6 +706,28 @@ export default function DataSourceWizard() {
         setConnectedSources(connectedSources.filter(id => id !== 'google-calendar'))
       } catch (error) {
         console.error('Disconnect Google Calendar failed:', error)
+      }
+    } else if (sourceId === 'google-workspace-mcp') {
+      try {
+        console.log('🔌 Disconnecting MCP Google Workspace integration...')
+        const response = await fetch(`/api/mcp/google-workspace/disconnect?context_id=${contextId}`, { 
+          method: 'POST' 
+        })
+        const data = await response.json()
+        
+        if (data.success) {
+          setConnectedSources(connectedSources.filter(id => id !== 'google-workspace-mcp'))
+          console.log('✅ MCP Google Workspace disconnected successfully')
+        } else {
+          throw new Error(data.error || 'Disconnect failed')
+        }
+      } catch (error) {
+        console.error('Disconnect MCP Google Workspace failed:', error)
+        setConnectionError(
+          language === 'zh' 
+            ? 'MCP Google Workspace断开连接失败'
+            : 'Failed to disconnect MCP Google Workspace'
+        )
       }
     }
   }
@@ -658,6 +843,7 @@ export default function DataSourceWizard() {
                               'gmail': `/contexts/${contextId}/gmail/messages`,
                               'google-drive': `/contexts/${contextId}/google-drive/messages`,
                               'google-calendar': `/contexts/${contextId}/google-calendar/messages`,
+                              'google-workspace-mcp': `/contexts/${contextId}/google-workspace-mcp/messages`,
                               'jira': `/contexts/${contextId}/jira/messages`,
                               'github': `/contexts/${contextId}/github/messages`,
                               'notion': `/contexts/${contextId}/notion/messages`
@@ -793,7 +979,9 @@ export default function DataSourceWizard() {
         <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20 mb-4">
           <XCircle className="w-4 h-4 text-red-600" />
           <AlertDescription className="text-red-800 dark:text-red-200">
-            {connectionError}
+            <div className="whitespace-pre-line font-mono text-sm leading-relaxed">
+              {connectionError}
+            </div>
           </AlertDescription>
         </Alert>
       )}

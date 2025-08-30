@@ -4,6 +4,7 @@
  */
 
 import { loadSlackMessages } from '@/lib/slack/database-storage'
+import { LocalSlackNLP, SentimentResult, TaskItem, MeetingThread, TeamInsights } from '@/lib/nlp/local-analyzer'
 
 export interface SlackSubAgentResult {
   success: boolean
@@ -19,13 +20,16 @@ export interface SlackSubAgentResult {
 export class SlackSubAgentSimple {
   private contextId: string
   private debugMode: boolean
+  private nlpAnalyzer: LocalSlackNLP
 
   constructor(contextId: string) {
     this.contextId = contextId
     this.debugMode = process.env.NODE_ENV === 'development'
+    this.nlpAnalyzer = new LocalSlackNLP()
     
     if (this.debugMode) {
       console.log(`🤖 Slack SubAgent (Simple) initialized for context: ${contextId}`)
+      console.log(`🧠 NLP Analyzer ready for deep analysis`)
     }
   }
 
@@ -342,6 +346,429 @@ export class SlackSubAgentSimple {
     insights.push(`${uniqueUsers} 位团队成员参与了讨论`)
 
     return insights
+  }
+
+  /**
+   * 🧠 深度分析 - 综合智能分析
+   */
+  async performDeepAnalysis(options: {
+    days?: number
+    includeSentiment?: boolean
+    includeTasks?: boolean
+    includeMeetings?: boolean
+    includeTeamInsights?: boolean
+  } = {}): Promise<SlackSubAgentResult> {
+    const startTime = Date.now()
+    const { days = 7, ...analysisOptions } = options
+    
+    try {
+      this.log(`🧠 Starting deep analysis (${days} days)`, analysisOptions)
+
+      // 获取分析数据
+      const { messages } = await loadSlackMessages(this.contextId, {
+        startDate: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+        limit: 500 // 增加样本量用于深度分析
+      })
+
+      if (messages.length === 0) {
+        return {
+          success: true,
+          data: {
+            message: '没有找到可分析的Slack消息',
+            timeframe: `${days} days`,
+            summary: '无数据可分析'
+          },
+          metadata: {
+            agentType: 'SLACK',
+            action: 'deep_analysis',
+            processingTime: Date.now() - startTime
+          }
+        }
+      }
+
+      // 执行深度分析
+      const deepAnalysisResult = await this.nlpAnalyzer.performDeepAnalysis(messages, {
+        includeSentiment: analysisOptions.includeSentiment,
+        includeTasks: analysisOptions.includeTasks,
+        includeMeetings: analysisOptions.includeMeetings,
+        includeTeamInsights: analysisOptions.includeTeamInsights,
+        timeframeDays: days
+      })
+
+      this.log(`✅ Deep analysis completed: ${deepAnalysisResult.summary}`)
+
+      return {
+        success: true,
+        data: {
+          timeframe: `${days} days`,
+          messageCount: messages.length,
+          analysis: deepAnalysisResult,
+          insights: this.formatInsights(deepAnalysisResult),
+          recommendations: this.formatRecommendations(deepAnalysisResult)
+        },
+        metadata: {
+          agentType: 'SLACK',
+          action: 'deep_analysis',
+          processingTime: Date.now() - startTime
+        }
+      }
+
+    } catch (error: any) {
+      this.log(`❌ Deep analysis failed: ${error.message}`)
+      
+      return {
+        success: false,
+        data: null,
+        metadata: {
+          agentType: 'SLACK',
+          action: 'deep_analysis',
+          processingTime: Date.now() - startTime
+        },
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * 🎯 情感分析专项
+   */
+  async analyzeSentiment(days: number = 7): Promise<SlackSubAgentResult> {
+    const startTime = Date.now()
+    
+    try {
+      this.log(`😊 Analyzing team sentiment (${days} days)`)
+
+      const { messages } = await loadSlackMessages(this.contextId, {
+        startDate: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+        limit: 300
+      })
+
+      const sentimentResult = await this.nlpAnalyzer.analyzeSentiment(messages)
+      const moodTrend = this.calculateMoodTrend(messages)
+      const riskAlerts = this.generateRiskAlerts(sentimentResult, messages)
+
+      return {
+        success: true,
+        data: {
+          sentiment: sentimentResult,
+          moodTrend,
+          riskAlerts,
+          teamMoodSummary: this.generateMoodSummary(sentimentResult, moodTrend)
+        },
+        metadata: {
+          agentType: 'SLACK',
+          action: 'analyze_sentiment',
+          processingTime: Date.now() - startTime
+        }
+      }
+
+    } catch (error: any) {
+      this.log(`❌ Sentiment analysis failed: ${error.message}`)
+      
+      return {
+        success: false,
+        data: null,
+        metadata: {
+          agentType: 'SLACK',
+          action: 'analyze_sentiment',
+          processingTime: Date.now() - startTime
+        },
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * 📋 任务提取专项
+   */
+  async extractTasks(days: number = 7): Promise<SlackSubAgentResult> {
+    const startTime = Date.now()
+    
+    try {
+      this.log(`📋 Extracting tasks from conversations (${days} days)`)
+
+      const { messages } = await loadSlackMessages(this.contextId, {
+        startDate: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+        limit: 400
+      })
+
+      const tasks = await this.nlpAnalyzer.extractTasks(messages)
+      const taskSummary = this.generateTaskSummary(tasks)
+      const priorityDistribution = this.calculatePriorityDistribution(tasks)
+
+      return {
+        success: true,
+        data: {
+          tasks,
+          summary: taskSummary,
+          priorityDistribution,
+          totalTasks: tasks.length,
+          urgentTasks: tasks.filter(t => t.priority === 'urgent').length,
+          unassignedTasks: tasks.filter(t => !t.assignee).length
+        },
+        metadata: {
+          agentType: 'SLACK',
+          action: 'extract_tasks',
+          processingTime: Date.now() - startTime
+        }
+      }
+
+    } catch (error: any) {
+      this.log(`❌ Task extraction failed: ${error.message}`)
+      
+      return {
+        success: false,
+        data: null,
+        metadata: {
+          agentType: 'SLACK',
+          action: 'extract_tasks',
+          processingTime: Date.now() - startTime
+        },
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * 🎯 会议分析专项
+   */
+  async analyzeMeetings(days: number = 7): Promise<SlackSubAgentResult> {
+    const startTime = Date.now()
+    
+    try {
+      this.log(`🎯 Analyzing meeting threads (${days} days)`)
+
+      const { messages } = await loadSlackMessages(this.contextId, {
+        startDate: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+        limit: 300
+      })
+
+      const meetings = await this.nlpAnalyzer.analyzeMeetings(messages)
+      const meetingSummary = this.generateMeetingSummary(meetings)
+
+      return {
+        success: true,
+        data: {
+          meetings,
+          summary: meetingSummary,
+          totalMeetings: meetings.length,
+          avgDuration: this.calculateAvgMeetingDuration(meetings),
+          productiveMeetings: meetings.filter(m => m.sentiment === 'productive').length,
+          decisionsCount: meetings.reduce((sum, m) => sum + m.decisions.length, 0)
+        },
+        metadata: {
+          agentType: 'SLACK',
+          action: 'analyze_meetings',
+          processingTime: Date.now() - startTime
+        }
+      }
+
+    } catch (error: any) {
+      this.log(`❌ Meeting analysis failed: ${error.message}`)
+      
+      return {
+        success: false,
+        data: null,
+        metadata: {
+          agentType: 'SLACK',
+          action: 'analyze_meetings',
+          processingTime: Date.now() - startTime
+        },
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * 格式化洞察输出 (供Master Agent使用)
+   */
+  private formatInsights(analysis: any): string {
+    const insights = []
+
+    if (analysis.sentiment) {
+      const { classification, score } = analysis.sentiment
+      insights.push(`团队情感: ${classification} (${score > 0 ? '+' : ''}${score})`)
+    }
+
+    if (analysis.tasks) {
+      const urgentCount = analysis.tasks.filter((t: TaskItem) => t.priority === 'urgent').length
+      insights.push(`识别任务: ${analysis.tasks.length}个 (${urgentCount}个紧急)`)
+    }
+
+    if (analysis.meetings) {
+      const productiveCount = analysis.meetings.filter((m: MeetingThread) => m.sentiment === 'productive').length
+      insights.push(`会议效率: ${productiveCount}/${analysis.meetings.length}个高效`)
+    }
+
+    if (analysis.teamInsights) {
+      insights.push(`协作评分: ${analysis.teamInsights.collaborationScore}/100`)
+    }
+
+    return insights.join(' | ')
+  }
+
+  /**
+   * 格式化建议输出 (供Master Agent决策)
+   */
+  private formatRecommendations(analysis: any): string[] {
+    const recommendations = []
+
+    if (analysis.teamInsights?.recommendations) {
+      for (const rec of analysis.teamInsights.recommendations) {
+        recommendations.push(`${rec.priority.toUpperCase()}: ${rec.description}`)
+      }
+    }
+
+    // 基于任务分析的建议
+    if (analysis.tasks) {
+      const urgentTasks = analysis.tasks.filter((t: TaskItem) => t.priority === 'urgent')
+      if (urgentTasks.length > 3) {
+        recommendations.push('HIGH: 紧急任务过多，建议重新评估优先级')
+      }
+
+      const unassignedTasks = analysis.tasks.filter((t: TaskItem) => !t.assignee)
+      if (unassignedTasks.length > 5) {
+        recommendations.push('MEDIUM: 多个任务未明确分配，建议明确责任人')
+      }
+    }
+
+    // 基于情感分析的建议
+    if (analysis.sentiment?.classification === 'negative') {
+      recommendations.push('HIGH: 团队情绪偏消极，建议关注成员状态')
+    }
+
+    return recommendations
+  }
+
+  /**
+   * 计算情绪趋势
+   */
+  private calculateMoodTrend(messages: any[]): string {
+    if (messages.length < 10) return '数据不足'
+
+    const half = Math.floor(messages.length / 2)
+    const earlierMessages = messages.slice(0, half)
+    const laterMessages = messages.slice(half)
+
+    // 这里简化为同步调用，实际应该异步
+    const earlierScore = this.quickSentimentScore(earlierMessages)
+    const laterScore = this.quickSentimentScore(laterMessages)
+
+    const diff = laterScore - earlierScore
+    
+    if (diff > 0.5) return '↗️ 情绪改善'
+    else if (diff < -0.5) return '↘️ 情绪下降'
+    else return '➡️ 情绪稳定'
+  }
+
+  /**
+   * 快速情感评分 (同步版本)
+   */
+  private quickSentimentScore(messages: any[]): number {
+    let score = 0
+    
+    for (const msg of messages) {
+      if (!msg.text) continue
+      const text = msg.text.toLowerCase()
+      
+      // 简单的关键词计分
+      if (text.includes('好') || text.includes('棒') || text.includes('赞')) score += 1
+      if (text.includes('问题') || text.includes('错误') || text.includes('困难')) score -= 1
+      if (text.includes('紧急') || text.includes('急')) score -= 0.5
+    }
+    
+    return messages.length > 0 ? score / messages.length : 0
+  }
+
+  /**
+   * 生成风险预警
+   */
+  private generateRiskAlerts(sentiment: SentimentResult, messages: any[]): string[] {
+    const alerts = []
+
+    if (sentiment.classification === 'negative' && sentiment.confidence > 0.7) {
+      alerts.push('⚠️ 团队情绪偏消极，建议关注成员状态')
+    }
+
+    const urgentCount = messages.filter(msg => 
+      msg.text?.includes('紧急') || msg.text?.includes('急')
+    ).length
+    
+    if (urgentCount > messages.length * 0.1) {
+      alerts.push('🚨 紧急事件频发，可能存在流程问题')
+    }
+
+    const stressCount = messages.filter(msg =>
+      msg.text?.includes('加班') || msg.text?.includes('压力') || msg.text?.includes('累')
+    ).length
+    
+    if (stressCount > messages.length * 0.05) {
+      alerts.push('😰 团队压力较大，建议关注工作负荷')
+    }
+
+    return alerts
+  }
+
+  /**
+   * 生成情绪摘要
+   */
+  private generateMoodSummary(sentiment: SentimentResult, trend: string): string {
+    const moodDesc = {
+      positive: '积极乐观',
+      neutral: '平稳正常', 
+      negative: '需要关注'
+    }[sentiment.classification]
+
+    return `团队当前情绪${moodDesc} (评分: ${sentiment.score})，${trend}。置信度: ${Math.round(sentiment.confidence * 100)}%`
+  }
+
+  /**
+   * 生成任务摘要
+   */
+  private generateTaskSummary(tasks: TaskItem[]): string {
+    if (tasks.length === 0) return '未识别到明确的任务安排'
+
+    const urgentCount = tasks.filter(t => t.priority === 'urgent').length
+    const assignedCount = tasks.filter(t => t.assignee).length
+    const withDeadline = tasks.filter(t => t.deadline).length
+
+    return `识别到 ${tasks.length} 个任务：${urgentCount} 个紧急，${assignedCount} 个已分配，${withDeadline} 个有明确截止时间`
+  }
+
+  /**
+   * 计算优先级分布
+   */
+  private calculatePriorityDistribution(tasks: TaskItem[]): Record<string, number> {
+    const distribution = { urgent: 0, high: 0, medium: 0, low: 0 }
+    
+    for (const task of tasks) {
+      distribution[task.priority]++
+    }
+    
+    return distribution
+  }
+
+  /**
+   * 生成会议摘要
+   */
+  private generateMeetingSummary(meetings: MeetingThread[]): string {
+    if (meetings.length === 0) return '未检测到明显的会议讨论线程'
+
+    const productiveCount = meetings.filter(m => m.sentiment === 'productive').length
+    const totalDecisions = meetings.reduce((sum, m) => sum + m.decisions.length, 0)
+    const totalActions = meetings.reduce((sum, m) => sum + m.actionItems.length, 0)
+
+    return `检测到 ${meetings.length} 个会议讨论：${productiveCount} 个高效会议，产生 ${totalDecisions} 个决策和 ${totalActions} 个行动项`
+  }
+
+  /**
+   * 计算平均会议时长
+   */
+  private calculateAvgMeetingDuration(meetings: MeetingThread[]): number {
+    if (meetings.length === 0) return 0
+    
+    const totalDuration = meetings.reduce((sum, m) => sum + m.duration, 0)
+    return Math.round(totalDuration / meetings.length)
   }
 
   private log(message: string, data?: any): void {

@@ -536,6 +536,136 @@ Vector数据库: 实现RAG语义搜索
 
 这个架构为AI Brain的长期发展提供了清晰的升级路径。
 
+### 🔗 MCP (Model Context Protocol) 集成架构
+
+#### MCP客户端-服务器通信流程
+```mermaid
+flowchart TB
+
+    subgraph YourApp["你的工具 (MCP Client)"]
+        A1["启动 MCP Client"]
+        A2["连接 MCP Server (stdio 或 HTTP+SSE)"]
+        A3["工具发现 (listTools)"]
+        A4["调用 Workspace 工具 (invoke)"]
+    end
+
+    subgraph MCPServer["mcp (独立服务)"]
+        S1["接收请求 (JSON-RPC 2.0)"]
+        S2["校验 OAuth Token / Scopes"]
+        S3["映射到 API 调用"]
+        S4["返回结果 (JSON)"]
+    end
+
+    subgraph API[" API"]
+        G1["Gmail API"]
+        G2["Drive API"]
+        G3["Docs/Sheets/Slides API"]
+        G4["Calendar API"]
+    end
+
+    %% 连接关系
+    A1 --> A2 --> A3 --> A4
+    A4 --> S1 --> S2 --> S3
+    S3 --> G1 & G2 & G3 & G4
+    G1 & G2 & G3 & G4 --> S4 --> A4
+```
+
+#### MCP协议工作原理
+```typescript
+// 1. MCP Client 启动和连接
+const mcpClient = new MCPClient({
+  serverUrl: 'http://localhost:8000/mcp',
+  transport: 'http+sse'  // Server-Sent Events
+})
+
+// 2. 工具发现阶段
+const tools = await mcpClient.listTools()
+// 返回: ["search_gmail_messages", "get_drive_file_content", ...]
+
+// 3. 工具调用阶段
+const result = await mcpClient.invokeTool('search_gmail_messages', {
+  query: 'from:boss@company.com subject:urgent',
+  max_results: 10
+})
+
+// 4. MCP Server 处理流程
+MCP Server 接收请求 → 验证OAuth Token → 调用Gmail API → 返回结构化结果
+```
+
+#### MCP集成优势
+```yaml
+标准化协议:
+  - JSON-RPC 2.0 通信协议
+  - 统一的工具发现和调用接口
+  - 跨语言、跨平台兼容性
+
+安全性:
+  - OAuth 2.0 标准认证
+  - Scope权限精确控制
+  - Token自动刷新机制
+
+可扩展性:
+  - 模块化工具设计
+  - 独立服务部署
+  - 支持自定义MCP服务器
+
+性能优化:
+  - 连接复用 (Keep-Alive)
+  - 批量操作支持
+  - 智能缓存策略
+```
+
+#### 在AI Brain中的MCP实现
+```typescript
+// 当前实现状态 (Google Workspace MCP)
+✅ MCP Client: lib/mcp/google-workspace-client.ts
+✅ 25+ Google工具集成
+✅ 自动OAuth流程
+✅ 错误处理和降级
+✅ 在AI聊天中的智能上下文整合
+
+// 工作流程示例
+用户: "帮我搜索关于项目的邮件"
+   ↓
+AI Brain MCP Client → Google Workspace MCP Server
+   ↓
+search_gmail_messages(query: "项目") → Gmail API
+   ↓  
+返回结构化邮件数据 → AI分析 → 智能摘要回复
+```
+
+#### Google Workspace MCP详细流程
+```mermaid
+flowchart TB
+
+    subgraph YourApp["AI Brain (MCP Client)"]
+        A1["启动 MCP Client"]
+        A2["连接 MCP Server (stdio 或 HTTP+SSE)"]
+        A3["工具发现 (listTools)"]
+        A4["调用 Workspace 工具 (invoke)"]
+    end
+
+    subgraph MCPServer["Google Workspace MCP (独立服务)"]
+        S1["接收请求 (JSON-RPC 2.0)"]
+        S2["校验 OAuth Token / Scopes"]
+        S3["映射到 API 调用"]
+        S4["返回结果 (JSON)"]
+    end
+
+    subgraph API["Google API"]
+        G1["Gmail API"]
+        G2["Drive API"]
+        G3["Docs/Sheets/Slides API"]
+        G4["Calendar API"]
+    end
+
+    %% 连接关系
+    A1 --> A2 --> A3 --> A4
+    A4 --> S1 --> S2 --> S3
+    S3 --> G1 & G2 & G3 & G4
+    G1 & G2 & G3 & G4 --> S4 --> A4
+```
+
 #### 多源上下文集成
 ```typescript
 // 核心上下文整合逻辑
