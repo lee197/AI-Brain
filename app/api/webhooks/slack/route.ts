@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
     const timestamp = req.headers.get('x-slack-request-timestamp')
 
     const event = JSON.parse(body)
-    console.log('Received Slack event:', event.type)
+    console.log('🔵 Received Slack event:', event.type)
+    console.log('🔵 Full event data:', JSON.stringify(event, null, 2))
 
     // 1. 处理URL验证挑战（在签名验证之前）
     if (event.type === 'url_verification') {
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
 
     // 3. 处理实际事件
     if (event.type === 'event_callback') {
-      console.log('Processing event:', event.event.type)
+      console.log('🟢 Processing event:', event.event.type)
+      console.log('🟢 Event details:', JSON.stringify(event.event, null, 2))
       await processSlackEvent(event.event)
     }
 
