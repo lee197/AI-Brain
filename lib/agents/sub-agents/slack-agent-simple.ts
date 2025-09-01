@@ -5,6 +5,7 @@
 
 import { loadSlackMessages } from '@/lib/slack/database-storage'
 import { LocalSlackNLP, SentimentResult, TaskItem, MeetingThread, TeamInsights } from '@/lib/nlp/local-analyzer'
+import { BrowserSafeNLP, BrowserSafeAnalysisResult } from '@/lib/nlp/browser-safe-analyzer'
 
 export interface SlackSubAgentResult {
   success: boolean
@@ -21,15 +22,18 @@ export class SlackSubAgentSimple {
   private contextId: string
   private debugMode: boolean
   private nlpAnalyzer: LocalSlackNLP
+  private enhancedNLP: BrowserSafeNLP
 
   constructor(contextId: string) {
     this.contextId = contextId
     this.debugMode = process.env.NODE_ENV === 'development'
     this.nlpAnalyzer = new LocalSlackNLP()
+    this.enhancedNLP = new BrowserSafeNLP()
     
     if (this.debugMode) {
       console.log(`🤖 Slack SubAgent (Simple) initialized for context: ${contextId}`)
-      console.log(`🧠 NLP Analyzer ready for deep analysis`)
+      console.log(`🧠 Enhanced Multilingual NLP Analyzer ready for deep analysis`)
+      console.log(`🎯 Features: Chinese segmentation, advanced sentiment, task extraction`)
     }
   }
 
@@ -386,7 +390,14 @@ export class SlackSubAgentSimple {
         }
       }
 
-      // 执行深度分析
+      // 执行增强的深度分析
+      this.log(`🔧 Using enhanced multilingual NLP for deep analysis`)
+      
+      // 合并消息文本进行批量分析
+      const combinedText = messages.map(m => m.text).filter(Boolean).join(' ')
+      const enhancedAnalysis = await this.enhancedNLP.analyzeComprehensive(combinedText)
+      
+      // 执行传统深度分析
       const deepAnalysisResult = await this.nlpAnalyzer.performDeepAnalysis(messages, {
         includeSentiment: analysisOptions.includeSentiment,
         includeTasks: analysisOptions.includeTasks,
@@ -394,6 +405,47 @@ export class SlackSubAgentSimple {
         includeTeamInsights: analysisOptions.includeTeamInsights,
         timeframeDays: days
       })
+      
+      // 融合增强分析结果
+      if (enhancedAnalysis) {
+        // 增强情感分析
+        if (deepAnalysisResult.sentiment && enhancedAnalysis.sentiment) {
+          deepAnalysisResult.sentiment.enhancedEmotions = enhancedAnalysis.sentiment.emotions
+          deepAnalysisResult.sentiment.contextFactors = enhancedAnalysis.sentiment.contextFactors
+          deepAnalysisResult.sentiment.confidence = Math.max(
+            deepAnalysisResult.sentiment.confidence, 
+            enhancedAnalysis.sentiment.confidence
+          )
+        }
+        
+        // 增强任务识别
+        if (deepAnalysisResult.tasks && enhancedAnalysis.tasks) {
+          // 合并高置信度任务
+          const highConfidenceTasks = enhancedAnalysis.tasks.filter(t => t.confidence > 0.7)
+          deepAnalysisResult.tasks.push(...highConfidenceTasks.map(t => ({
+            id: `enhanced_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            title: t.title,
+            description: t.description,
+            assignee: t.assignee || null,
+            priority: t.priority as 'urgent' | 'high' | 'medium' | 'low',
+            confidence: t.confidence,
+            deadline: t.deadline,
+            source: 'enhanced_nlp'
+          })))
+        }
+        
+        // 添加语言检测信息
+        deepAnalysisResult.languageInfo = {
+          detectedLanguages: enhancedAnalysis.languageInfo.detectedLanguages,
+          primaryLanguage: enhancedAnalysis.languageInfo.primaryLanguage,
+          mixedLanguage: enhancedAnalysis.languageInfo.mixedLanguage
+        }
+        
+        // 添加实体识别
+        if (enhancedAnalysis.entities && enhancedAnalysis.entities.length > 0) {
+          deepAnalysisResult.entities = enhancedAnalysis.entities
+        }
+      }
 
       this.log(`✅ Deep analysis completed: ${deepAnalysisResult.summary}`)
 
@@ -443,7 +495,23 @@ export class SlackSubAgentSimple {
         limit: 300
       })
 
+      // 使用增强的情感分析
+      this.log(`🔧 Using enhanced sentiment analysis`)
+      const combinedText = messages.map(m => m.text).filter(Boolean).join(' ')
+      const enhancedSentiment = await this.enhancedNLP.analyzeComprehensive(combinedText)
+      
+      // 传统情感分析作为备份
       const sentimentResult = await this.nlpAnalyzer.analyzeSentiment(messages)
+      
+      // 融合分析结果
+      if (enhancedSentiment?.sentiment) {
+        sentimentResult.enhancedEmotions = enhancedSentiment.sentiment.emotions
+        sentimentResult.contextFactors = enhancedSentiment.sentiment.contextFactors
+        sentimentResult.confidence = Math.max(sentimentResult.confidence, enhancedSentiment.sentiment.confidence)
+        
+        this.log(`✨ Enhanced sentiment: ${enhancedSentiment.sentiment.primaryEmotion} (${enhancedSentiment.sentiment.confidence})`)
+      }
+      
       const moodTrend = this.calculateMoodTrend(messages)
       const riskAlerts = this.generateRiskAlerts(sentimentResult, messages)
 
@@ -492,7 +560,32 @@ export class SlackSubAgentSimple {
         limit: 400
       })
 
+      // 使用增强的任务提取
+      this.log(`🔧 Using enhanced task extraction`)
+      const combinedText = messages.map(m => m.text).filter(Boolean).join(' ')
+      const enhancedAnalysis = await this.enhancedNLP.analyzeComprehensive(combinedText)
+      
+      // 传统任务提取
       const tasks = await this.nlpAnalyzer.extractTasks(messages)
+      
+      // 合并增强的任务识别结果
+      if (enhancedAnalysis?.tasks) {
+        const highConfidenceTasks = enhancedAnalysis.tasks.filter(t => t.confidence > 0.6)
+        const enhancedTasks = highConfidenceTasks.map(t => ({
+          id: `enhanced_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: t.title,
+          description: t.description,
+          assignee: t.assignee || null,
+          priority: t.priority as 'urgent' | 'high' | 'medium' | 'low',
+          confidence: t.confidence,
+          deadline: t.deadline,
+          source: 'enhanced_nlp'
+        }))
+        
+        tasks.push(...enhancedTasks)
+        this.log(`✨ Enhanced task extraction: +${enhancedTasks.length} high-confidence tasks`)
+      }
+      
       const taskSummary = this.generateTaskSummary(tasks)
       const priorityDistribution = this.calculatePriorityDistribution(tasks)
 

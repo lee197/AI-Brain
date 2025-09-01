@@ -1,32 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest } from 'next/server'
+import { streamText, convertToCoreMessages } from 'ai'
 import { z } from 'zod'
+import type { Message } from 'ai'
+import { AI_MODELS, getDefaultModel, AIModelType } from '@/lib/ai/models'
+import { MasterAgentV2 } from '@/lib/agents/master-agent-v2'
+import { createClient } from '@/lib/supabase/server'
+import { buildEnhancedContext, convertContextToMessages, getContextStats } from '@/lib/ai/context-builder'
 
-// 根据CLAUDE.md配置，我们使用OpenAI和Anthropic
-const openaiApiKey = process.env.OPENAI_API_KEY
-const anthropicApiKey = process.env.ANTHROPIC_API_KEY
-
-// 请求验证模式
-const chatRequestSchema = z.object({
-  message: z.string().min(1),
+// 请求验证 - 支持两种格式：传统单消息和新的消息数组
+const requestSchema = z.object({
+  // 新格式：消息数组（符合 Vercel AI SDK 标准）
+  messages: z.array(z.object({
+    id: z.string().optional(),
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().optional().default(''),
+    parts: z.array(z.object({
+      type: z.string().optional(),
+      text: z.string().optional(),
+    })).optional(),
+  })).optional(),
+  
+  // 传统格式：单消息（向后兼容）
+  message: z.string().optional(),
+  
+  // 通用参数
   contextId: z.string().optional(),
-  conversationId: z.string().optional(),
-  aiModel: z.enum(['openai', 'anthropic']).default('openai')
+  conversationId: z.string().optional(), // 保持向后兼容
+  model: z.string().optional(),
+  aiModel: z.enum(['openai', 'anthropic', 'gemini']).optional(), // 向后兼容
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().min(1).max(8192).optional(),
+}).refine(data => data.messages || data.message, {
+  message: "Either 'messages' or 'message' is required"
 })
-
-// 上下文增强的AI提示
-const systemPrompt = `你是AI Brain，一个智能的企业工作助手。你可以：
-
-1. **数据源管理**: 查询和分析Slack、Jira、GitHub、Google Workspace等工具的数据
-2. **任务管理**: 创建、分配和跟踪任务
-3. **团队协作**: 安排会议、生成报告、分析工作进展
-4. **智能洞察**: 提供基于数据的建议和预测
-
-请用简洁、专业且有用的方式回应用户。如果用户询问特定功能，提供具体的操作建议。`
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. 认证检查 - 使用真实的Supabase认证
+    // 1. 认证检查（保持原有逻辑）
     let user = null
     
     try {
@@ -35,310 +45,276 @@ export async function POST(req: NextRequest) {
       
       if (error) {
         console.log('Supabase auth error:', error.message)
-        // 如果Supabase认证失败，尝试使用备用方案
         user = { id: 'fallback-user', email: 'user@aibrain.com' }
       } else {
         user = authUser
       }
     } catch (error) {
       console.error('Auth check error:', error)
-      // 使用备用用户
       user = { id: 'fallback-user', email: 'user@aibrain.com' }
     }
     
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized - Please login first' }, { status: 401 })
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login first' }), 
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
-    // 2. 验证输入
+    // 2. 验证和解析请求
     const body = await req.json()
-    const { message, contextId, conversationId, aiModel } = chatRequestSchema.parse(body)
+    const { 
+      messages, 
+      message, 
+      contextId, 
+      model, 
+      aiModel, 
+      temperature = 0.7, 
+      maxTokens = 1024 
+    } = requestSchema.parse(body)
 
-    // 3. 获取上下文信息（暂时使用模拟数据）
-    let contextInfo = ''
+    // 3. 统一消息格式处理
+    let processedMessages: Message[]
+    let userMessage: string
+
+    if (messages) {
+      // 新格式：使用消息数组，处理content或parts格式
+      processedMessages = messages
+        .map(msg => {
+          // 提取内容：优先使用content，否则从parts中提取
+          let content = msg.content || ''
+          if (!content && msg.parts && msg.parts.length > 0) {
+            content = msg.parts
+              .filter(part => part.type === 'text' && part.text)
+              .map(part => part.text)
+              .join('')
+          }
+          return {
+            ...msg,
+            id: msg.id || `msg-${Date.now()}`,
+            content,
+          }
+        })
+        .filter(msg => msg.content && msg.content.trim()) // 过滤空消息
+      
+      userMessage = processedMessages
+        .filter(m => m.role === 'user')
+        .pop()?.content || ''
+    } else {
+      // 传统格式：转换单消息为数组
+      processedMessages = [
+        { id: 'user-msg', role: 'user', content: message! }
+      ]
+      userMessage = message!
+    }
+    
+    // 检查是否有有效的用户消息
+    if (!userMessage || !userMessage.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'No valid user message found' }), 
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    console.log(`🧠 AI Chat (SDK) processing: "${userMessage}" for context: ${contextId}`)
+
+    // 4. 构建增强上下文（MCP + Slack集成）
+    console.log(`🔍 Building enhanced context for message: "${userMessage}"`)
+    const contextData = await buildEnhancedContext(userMessage, contextId)
+    const contextStats = getContextStats(contextData)
+
+    // 5. Master Agent 处理（如果需要）
+    let agentResult: any = null
     if (contextId) {
-      // 模拟上下文信息
-      contextInfo = `当前工作空间: AI Brain测试空间 (PROJECT)\n`
+      try {
+        const masterAgent = new MasterAgentV2(true)
+        agentResult = await masterAgent.processUserRequest(userMessage, contextId)
+      } catch (error) {
+        console.warn('⚠️ Master Agent processing failed:', error)
+        // 继续处理，但不使用 Master Agent 结果
+      }
     }
 
-    // 4. 获取对话历史（暂时跳过）
-    const conversationHistory = []
+    // 6. 构建增强的消息列表
+    let enhancedMessages: Message[]
 
-    // 5. 构建AI请求
-    const aiResponse = await callAIService({
-      model: aiModel,
-      systemPrompt: systemPrompt + contextInfo,
-      message,
-      conversationHistory
+    if (contextStats.hasContext) {
+      // 使用 MCP 上下文构建消息
+      enhancedMessages = convertContextToMessages(contextData, userMessage)
+      console.log(`✅ Using enhanced context: ${contextStats.slackMessagesCount} Slack messages, ${contextStats.emailsCount} emails, ${contextStats.calendarEventsCount} events`)
+    } else if (agentResult?.success && agentResult?.metadata?.strategy !== 'direct_response') {
+      // 降级到 Master Agent 上下文
+      enhancedMessages = [
+        {
+          id: 'system-agent-context',
+          role: 'system',
+          content: `你是AI Brain智能助手。以下是Master Agent提供的上下文信息：
+
+🎯 **用户意图**: ${agentResult?.metadata?.intent?.category || '未知'}
+📊 **置信度**: ${agentResult?.metadata?.confidence || 0}
+🔧 **子代理**: ${agentResult?.metadata?.subAgentsUsed?.join(', ') || '无'}
+
+请基于这些信息，用专业、友好的方式回复用户的问题。`,
+        },
+        ...processedMessages
+      ]
+    } else {
+      // 基本系统提示
+      enhancedMessages = [
+        {
+          id: 'system-base',
+          role: 'system',
+          content: `你是AI Brain，一个智能的企业工作助手。你可以：
+
+1. **数据源管理**: 查询和分析Slack、Jira、GitHub、Google Workspace等工具的数据
+2. **任务管理**: 创建、分配和跟踪任务
+3. **团队协作**: 安排会议、生成报告、分析工作进展
+4. **智能洞察**: 提供基于数据的建议和预测
+
+请用简洁、专业且有用的方式回应用户。`,
+        },
+        ...processedMessages
+      ]
+    }
+
+    // 6. 模型选择（优先 SDK 格式，向后兼容传统格式）
+    let selectedModel: AIModelType = getDefaultModel()
+    
+    if (model && model in AI_MODELS) {
+      selectedModel = model as AIModelType
+    } else if (aiModel) {
+      // 向后兼容：映射传统模型名称
+      const modelMapping: Record<string, AIModelType> = {
+        'openai': 'gpt-3.5-turbo',
+        'anthropic': 'claude-3-haiku',
+        'gemini': 'gemini-flash'
+      }
+      selectedModel = modelMapping[aiModel] || getDefaultModel()
+    }
+
+    const aiModelInstance = AI_MODELS[selectedModel]
+
+    if (!aiModelInstance) {
+      throw new Error(`Model ${selectedModel} not available`)
+    }
+
+    // 7. 高置信度直接响应优化 - 使用流式响应保持与 Vercel AI SDK 兼容
+    if (agentResult?.success && 
+        agentResult.metadata.strategy === 'direct_response' && 
+        agentResult.metadata.confidence > 0.8) {
+      
+      // 使用 streamText 来返回直接响应，保持流式格式兼容性
+      const result = await streamText({
+        model: aiModelInstance,
+        messages: [
+          {
+            role: 'system',
+            content: '你是AI Brain智能助手。直接返回准备好的响应，无需额外处理。'
+          },
+          {
+            role: 'user',
+            content: '请返回以下回复：' + agentResult.response
+          }
+        ],
+        temperature: 0,
+        maxTokens: 2000,
+      })
+
+      return result.toTextStreamResponse()
+    }
+
+    // 8. AI SDK 流式生成
+    // 安全检查：确保 enhancedMessages 存在
+    if (!enhancedMessages || !Array.isArray(enhancedMessages)) {
+      enhancedMessages = [
+        {
+          id: 'system-fallback',
+          role: 'system',
+          content: '你是AI Brain智能助手，请用简洁、专业且有用的方式回应用户。'
+        },
+        ...processedMessages
+      ]
+    }
+
+
+    const result = await streamText({
+      model: aiModelInstance,
+      messages: enhancedMessages.map(msg => ({
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content
+      })),
+      temperature,
+      maxTokens,
+      system: agentResult?.success ? 
+        `上下文增强信息：
+- 用户意图类型：${agentResult?.metadata?.intent?.category || '未知'}
+- 使用的子代理：${agentResult?.metadata?.subAgentsUsed?.join(', ') || '无'}
+- 处理策略：${agentResult?.metadata?.strategy || '未知'}
+- 处理时间：${agentResult?.metadata?.processingTime || 0}ms
+
+请充分利用这些信息提供精确、有用的回复。` : undefined,
     })
 
-    // 6. 保存消息到数据库（暂时跳过）
-    // if (conversationId) {
-    //   // 保存用户消息和AI回复的代码暂时注释
-    // }
-
-    return NextResponse.json({
-      response: aiResponse.content,
-      actions: aiResponse.actions || [],
-      model: aiModel,
-      timestamp: new Date().toISOString()
-    })
+    // 9. 返回文本流响应
+    return result.toTextStreamResponse()
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return new Response(
+        JSON.stringify({ error: 'Invalid request format', details: error.errors }), 
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
     }
     
-    console.error('AI Chat Error:', error)
-    return NextResponse.json({ 
-      error: 'AI service temporarily unavailable' 
-    }, { status: 500 })
-  }
-}
-
-// AI服务调用函数
-async function callAIService({ 
-  model, 
-  systemPrompt, 
-  message, 
-  conversationHistory 
-}: {
-  model: 'openai' | 'anthropic'
-  systemPrompt: string
-  message: string
-  conversationHistory: any[]
-}) {
-  
-  if (model === 'openai' && openaiApiKey) {
-    return await callOpenAI(systemPrompt, message, conversationHistory)
-  } else if (model === 'anthropic' && anthropicApiKey) {
-    return await callAnthropic(systemPrompt, message, conversationHistory)
-  } else {
-    // 降级到智能模拟响应
-    return await generateSmartResponse(message, conversationHistory)
-  }
-}
-
-// OpenAI集成
-async function callOpenAI(systemPrompt: string, message: string, history: any[]) {
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...history,
-    { role: 'user', content: message }
-  ]
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4-turbo-preview',
-      messages,
-      max_tokens: 1000,
-      temperature: 0.7,
-    }),
-  })
-
-  const data = await response.json()
-  
-  return {
-    content: data.choices[0].message.content,
-    actions: extractActions(data.choices[0].message.content)
-  }
-}
-
-// Anthropic集成
-async function callAnthropic(systemPrompt: string, message: string, history: any[]) {
-  // Anthropic API 调用实现
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': anthropicApiKey!,
-      'Content-Type': 'application/json',
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-sonnet-20240229',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [
-        ...history,
-        { role: 'user', content: message }
-      ]
-    }),
-  })
-
-  const data = await response.json()
-  
-  return {
-    content: data.content[0].text,
-    actions: extractActions(data.content[0].text)
-  }
-}
-
-// 智能模拟响应（当没有API密钥时）
-async function generateSmartResponse(message: string, history: any[]) {
-  const lowerMessage = message.toLowerCase()
-  
-  // 基于关键词的智能响应，集成数据分析
-  if (lowerMessage.includes('数据源') || lowerMessage.includes('连接状态')) {
-    // 调用数据分析API获取实时状态
-    try {
-      const analysisResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/ai/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'data_source_health' })
-      })
-      
-      if (analysisResponse.ok) {
-        const analysisData = await analysisResponse.json()
-        const result = analysisData.data
-        
-        return {
-          content: `我来为你分析数据源连接状态：
-
-**${result.summary}**
-
-**详细状态：**
-${result.insights.map((insight: any) => 
-  `• ${insight.type === 'warning' ? '⚠️' : insight.type === 'success' ? '✅' : 'ℹ️'} **${insight.title}**: ${insight.description}`
-).join('\n')}
-
-**关键指标：**
-${result.metrics.map((metric: any) => 
-  `• **${metric.name}**: ${metric.value}${metric.unit || ''} ${metric.trend ? (metric.trend === 'up' ? '📈' : metric.trend === 'down' ? '📉' : '➡️') : ''}`
-).join('\n')}
-
-**建议操作：**
-${result.recommendations.map((rec: any, index: number) => 
-  `${index + 1}. **${rec.title}**: ${rec.description}`
-).join('\n')}`,
-          actions: [{
-            type: 'analyze_datasources',
-            title: '深度分析数据源',
-            status: 'completed'
-          }]
-        }
+    console.error('AI Chat (SDK) Error:', error)
+    
+    // 降级到传统响应格式（向后兼容）
+    return new Response(
+      JSON.stringify({ 
+        response: 'AI服务暂时不可用，请稍后再试。',
+        error: 'AI service temporarily unavailable',
+        model: 'fallback',
+        timestamp: new Date().toISOString(),
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }), 
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
       }
-    } catch (error) {
-      console.error('Analysis API error:', error)
-    }
-    
-    // 降级到静态响应
-    return {
-      content: `我来为你检查数据源连接状态：
-
-**当前连接状态：**
-• ✅ **Slack** - 已连接，最后同步: 5分钟前
-• 🔄 **Jira** - 同步中，进度: 88%  
-• ✅ **GitHub** - 已连接，最后同步: 8分钟前
-• ❌ **Google Workspace** - 连接异常，需要重新认证
-
-**建议操作：**
-1. 重新连接Google Workspace
-2. 检查Jira同步进度
-3. 确保所有数据源权限正常`,
-      actions: [{
-        type: 'check_datasources',
-        title: '检查数据源',
-        status: 'completed'
-      }]
-    }
-  }
-  
-  if (lowerMessage.includes('任务') || lowerMessage.includes('清单')) {
-    return {
-      content: `根据你的工作空间数据，我为你生成了今日任务清单：
-
-**🔥 紧急任务**
-• Review PR #142 - AI Brain登录优化
-• 处理3个高优先级Jira ticket
-• 准备下午14:00的项目会议
-
-**📋 今日计划**  
-• 完成用户界面重构
-• 更新项目文档
-• 团队进度同步会议
-
-**⏰ 时间安排**
-• 09:00-11:00: 代码Review
-• 14:00-15:00: 项目会议
-• 16:00-17:00: 文档更新
-
-需要我帮你创建任何具体任务吗？`,
-      actions: [{
-        type: 'create_task',
-        title: '创建新任务',
-        status: 'pending'
-      }]
-    }
-  }
-
-  if (lowerMessage.includes('团队') || lowerMessage.includes('进展') || lowerMessage.includes('工作')) {
-    return {
-      content: `团队本周工作进展分析：
-
-**📊 整体进度**
-• 项目完成度: 78%
-• 代码质量评分: 92/100
-• 团队效率: ⬆️ 提升15%
-
-**👥 团队状态**
-• **张三** (项目经理) - 🟢 正常进度
-• **李四** (开发工程师) - 🟡 任务较重，建议调整
-• **王五** (设计师) - 🟢 提前完成设计稿
-
-**🎯 关键指标**
-• Bug修复率: 95%
-• 代码Review覆盖: 100%
-• 文档更新度: 85%
-
-建议优化李四的任务分配，其他团队成员状态良好。`,
-      actions: [{
-        type: 'analyze_team',
-        title: '深度团队分析',
-        status: 'pending'
-      }]
-    }
-  }
-
-  // 默认响应
-  return {
-    content: `我理解你的需求。作为AI Brain智能助手，我可以帮助你：
-
-• 📊 **数据分析** - 分析工作数据和团队表现
-• ✅ **任务管理** - 创建、分配和跟踪任务进度  
-• 👥 **团队协作** - 安排会议、同步进展
-• 📄 **报告生成** - 自动生成工作报告
-• 🔍 **智能搜索** - 查找项目文档和信息
-
-请告诉我你具体需要什么帮助，我会为你提供详细的解决方案。`,
-    actions: []
+    )
   }
 }
 
-// 从AI响应中提取可执行操作
-function extractActions(content: string) {
-  const actions = []
-  
-  // 简单的操作提取逻辑
-  if (content.includes('创建任务') || content.includes('create task')) {
-    actions.push({
-      type: 'create_task',
-      title: '创建任务',
-      status: 'pending'
+// GET 请求：获取可用模型（新增功能）
+export async function GET() {
+  try {
+    const { getAvailableModels, MODEL_METADATA } = await import('@/lib/ai/models')
+    
+    const available = getAvailableModels()
+    const availableModels = Object.entries(available)
+      .filter(([_, isAvailable]) => isAvailable)
+      .map(([model]) => ({
+        id: model,
+        ...MODEL_METADATA[model as AIModelType],
+      }))
+
+    return new Response(JSON.stringify({
+      success: true,
+      models: availableModels,
+      default: getDefaultModel(),
+      capabilities: {
+        streaming: true,
+        masterAgent: true,
+        contextIntegration: true,
+        mcpSupport: true,
+      }
+    }), {
+      headers: { 'Content-Type': 'application/json' }
     })
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: 'Failed to get available models' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
-  
-  if (content.includes('安排会议') || content.includes('schedule meeting')) {
-    actions.push({
-      type: 'schedule_meeting', 
-      title: '安排会议',
-      status: 'pending'
-    })
-  }
-  
-  return actions
 }

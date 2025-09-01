@@ -4,7 +4,9 @@
       "Bash(code:*)",
       "Bash(pip3 install:*)",
       "Bash(npm install:*)",
-      "Bash(uvx workspace-mcp:*)"
+      "Bash(uvx workspace-mcp:*)",
+      "Read(/Users/leeqi/Desktop/**)",
+      "Read(/var/folders/2k/pzh18twj6pl2x8gfm0rgt72h0000gp/T/TemporaryItems/NSIRD_screencaptureui_wucDBs/**)"
     ],
     "deny": [],
     "ask": []
