@@ -1294,6 +1294,53 @@ npm run build           # 生产构建
 npm run start           # 生产模式启动
 ```
 
+## 🌐 端口管理规则
+
+**重要原则**: AI Brain项目永远运行在端口3000上。如果端口被占用，必须终止占用进程后重启项目。
+
+### 端口冲突处理
+```bash
+# 1. 检查端口占用情况
+lsof -i :3000
+
+# 2. 强制终止占用3000端口的进程
+sudo kill -9 $(lsof -t -i:3000)
+# 或者
+sudo lsof -ti:3000 | xargs kill -9
+
+# 3. 清理端口后启动项目
+npm run dev
+
+# 4. 验证项目正常运行
+curl http://localhost:3000 || echo "端口3000启动成功"
+```
+
+### 自动化脚本
+```bash
+# 创建自动化启动脚本 (可选)
+#!/bin/bash
+# scripts/start-dev.sh
+
+echo "🔍 检查端口3000占用情况..."
+if lsof -i :3000 > /dev/null 2>&1; then
+    echo "⚠️  端口3000被占用，正在终止进程..."
+    sudo kill -9 $(lsof -t -i:3000) 2>/dev/null || true
+    sleep 2
+    echo "✅ 端口3000已清理"
+fi
+
+echo "🚀 启动AI Brain开发服务器..."
+npm run dev
+```
+
+### 端口规则说明
+- **开发环境**: 始终使用端口3000 (`http://localhost:3000`)
+- **测试环境**: 使用端口3002 (避免冲突)
+- **生产环境**: 根据部署平台自动分配
+- **MCP服务**: 运行在端口8000 (`http://localhost:8000/mcp`)
+
+**注意**: 不得随意更改开发端口号，所有环境变量、OAuth回调URL、Webhook配置都基于端口3000设计。
+
 ## 🎨 UI/UX设计系统
 
 ### shadcn/ui组件生态
