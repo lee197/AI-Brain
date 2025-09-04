@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getMockUser, isMockMode } from '@/lib/mock-auth'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -19,38 +18,6 @@ export async function middleware(request: NextRequest) {
   // API 路由始终可访问
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
 
-  // 使用模拟认证模式
-  if (isMockMode()) {
-    const mockUser = await getMockUser()
-    
-    // 未登录且访问受保护路由
-    if (!mockUser && !isPublicRoute && !isApiRoute) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
-
-    // 已登录且访问认证页面，只在特定情况下重定向：
-    // 1. 有有效的用户会话
-    // 2. 不是明确的登出操作 (通过 ?logout 参数检测)
-    // 3. 不是刷新登录的情况 (通过 ?refresh 参数检测)
-    const isExplicitLogout = request.nextUrl.searchParams.get('logout') === 'true'
-    const isRefreshLogin = request.nextUrl.searchParams.get('refresh') === 'true'
-    
-    if (mockUser && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup') && !isExplicitLogout && !isRefreshLogin) {
-      // 检查用户会话是否仍然有效 (简单检查：用户对象是否包含必需字段)
-      const isValidSession = mockUser.id && mockUser.email && mockUser.name
-      
-      if (isValidSession) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/contexts'
-        return NextResponse.redirect(url)
-      }
-    }
-
-    return response
-  }
-
   // 检查 Supabase 是否配置
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     // Supabase 未配置，允许访问公共路由
@@ -62,7 +29,7 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // 使用真实 Supabase 认证
+  // 使用 Supabase 认证
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

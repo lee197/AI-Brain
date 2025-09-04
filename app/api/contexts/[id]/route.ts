@@ -21,37 +21,16 @@ const updateContextSchema = z.object({
   metadata: z.record(z.any()).optional(),
 })
 
-// 获取当前用户ID（与主route.ts保持一致）
+// 获取当前用户ID
 async function getCurrentUserId(request: NextRequest): Promise<string> {
-  if (process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true') {
-    const authCookie = request.cookies.get('ai-brain-auth')?.value
-    if (authCookie) {
-      try {
-        const authData = JSON.parse(authCookie)
-        if (authData.email === 'admin@aibrain.com') {
-          return '11111111-1111-1111-1111-111111111111'
-        } else if (authData.email === 'demo@aibrain.com') {
-          return '22222222-2222-2222-2222-222222222222'
-        }
-      } catch (e) {
-        if (authCookie === 'admin@aibrain.com') {
-          return '11111111-1111-1111-1111-111111111111'
-        } else if (authCookie === 'demo@aibrain.com') {
-          return '22222222-2222-2222-2222-222222222222'
-        }
-      }
-    }
-    if (process.env.NODE_ENV === 'development') {
-      return '11111111-1111-1111-1111-111111111111'
-    }
-  } else {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Unauthorized')
-    return user.id
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  if (error || !user) {
+    throw new Error('Unauthorized')
   }
   
-  throw new Error('Unauthorized')
+  return user.id
 }
 
 // 检查用户是否有特定权限

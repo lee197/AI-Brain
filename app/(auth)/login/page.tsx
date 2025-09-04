@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useActionState, useEffect, useState, useTransition } from 'react'
+import { Suspense, useActionState, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { login, signInWithProvider } from '@/lib/auth-actions'
-import { setMockUserClient } from '@/lib/mock-auth'
 import { Github, Loader2 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/language-context'
 import { LanguageSwitcher } from '@/components/language-switcher'
@@ -31,15 +30,7 @@ function LoginContent() {
   const isRefresh = searchParams.get('refresh') === 'true'
   const message = searchParams.get('message') ? decodeURIComponent(searchParams.get('message')!) : null
 
-  // Handle successful login response
-  useEffect(() => {
-    if (state?.success && state?.user) {
-      // Store user data in localStorage for mock auth
-      setMockUserClient(state.user)
-      // Redirect to contexts page
-      router.push('/contexts')
-    }
-  }, [state, router])
+  // Handle successful login - Supabase handles redirect automatically
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     setIsOAuthLoading(provider)
@@ -57,14 +48,9 @@ function LoginContent() {
   }
 
   const handleClearSession = () => {
-    // Clear all authentication data
+    // Clear authentication session
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('mock-auth-user')
-      localStorage.removeItem('ai-brain-current-context')
-      // Clear cookies
-      document.cookie = 'mock-auth-user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      document.cookie = 'ai-brain-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      // Redirect to clean login page
+      // Reload the page to clear any cached states
       window.location.href = '/login?refresh=true'
     }
   }

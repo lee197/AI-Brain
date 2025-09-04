@@ -41,9 +41,25 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documentation and database files
-*.md
+# database files
 *.sql
+
+# Development and setup documentation (keep README.md and CLAUDE.md)
+setup-*.md
+*-guide.md
+*-SETUP.md
+DEPLOYMENT*.md
+VERCEL_*.md
+TEST_*.md
+UI_*.md
+FEATURE_*.md
+AUTH_*.md
+I18N_*.md
+test-*.md
+
+# Documentation directories (development docs)
+/docs/
+/scripts/*.md
 
 # test and development files
 test-*.js
@@ -51,3 +67,65 @@ monitor-*.js
 
 # data directory with user credentials and sensitive information
 /data/
+
+# MCP state files (may contain sensitive connection data)
+/.mcp-state/
+
+# Claude Code settings (may contain sensitive data)
+/.claude/
+
+# Slack configurations and messages (sensitive data)
+/.slack-configs/
+/.slack-messages/
+
+# Backup and temporary files
+*.bak
+*.backup
+*.orig
+*.tmp
+headers.tmp
+
+# Credential and token files
+*token*
+*secret*
+*credential*
+credentials.json
+
+# Vercel deployment cache
+/.vercel
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Log files
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Playwright test results and cache
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Screenshots from testing
+test-*.png
+page-loaded.png
+after-*.png

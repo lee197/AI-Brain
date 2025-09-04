@@ -50,47 +50,33 @@ const querySchema = z.object({
   offset: z.number().min(0).optional(),
 })
 
-// 获取当前用户ID（模拟认证时使用固定ID）
+// 获取当前用户ID
 async function getCurrentUserId(request: NextRequest): Promise<string> {
-  // 如果使用模拟认证
-  if (process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true') {
-    const authCookie = request.cookies.get('ai-brain-auth')?.value
-    if (authCookie) {
-      try {
-        const authData = JSON.parse(authCookie)
-        // 使用固定的UUID格式ID以符合数据库要求
-        if (authData.email === 'admin@aibrain.com') {
-          return '11111111-1111-1111-1111-111111111111' // 固定的admin用户ID
-        } else if (authData.email === 'demo@aibrain.com') {
-          return '22222222-2222-2222-2222-222222222222' // 固定的demo用户ID
-        }
-      } catch (e) {
-        if (authCookie === 'admin@aibrain.com') {
-          return '11111111-1111-1111-1111-111111111111'
-        } else if (authCookie === 'demo@aibrain.com') {
-          return '22222222-2222-2222-2222-222222222222'
-        }
-      }
-    }
-    // 开发环境默认返回admin用户ID
-    if (process.env.NODE_ENV === 'development') {
-      return '11111111-1111-1111-1111-111111111111'
-    }
-  } else {
-    // 使用真实的Supabase认证
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Unauthorized')
-    return user.id
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  if (error || !user) {
+    throw new Error('Unauthorized')
   }
   
-  throw new Error('Unauthorized')
+  return user.id
 }
 
 // GET /api/contexts - 获取用户的Context列表
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId(request)
+    let userId: string
+    
+    try {
+      userId = await getCurrentUserId(request)
+    } catch (error) {
+      console.error('Authentication error:', error)
+      return NextResponse.json({ 
+        error: 'Authentication required',
+        message: 'Please login to access contexts'
+      }, { status: 401 })
+    }
+    
     const { searchParams } = new URL(request.url)
     
     // 解析查询参数

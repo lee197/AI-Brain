@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
-import { isMockMode, mockLogin, mockSignup, mockLogout, mockOAuthLogin } from '@/lib/mock-auth'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址 / Please enter a valid email'),
@@ -38,46 +37,6 @@ export async function login(prevState: { message?: string; errors?: any } | null
 
   const { email, password } = validatedFields.data
 
-  // 使用模拟认证
-  if (isMockMode()) {
-    try {
-      const result = await mockLogin(email, password)
-      
-      if (result.error) {
-        return {
-          message: result.error,
-        }
-      }
-
-      // 成功登录，返回成功状态和用户数据，让客户端处理localStorage
-      if (result.user) {
-        // 设置服务端 cookie 给 middleware 使用
-        const { cookies } = await import('next/headers')
-        const cookieStore = await cookies()
-        cookieStore.set('mock-auth-user', JSON.stringify(result.user), {
-          httpOnly: false,
-          secure: false, 
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-          path: '/'
-        })
-        
-        return {
-          success: true,
-          user: result.user,
-        }
-      }
-
-      revalidatePath('/', 'layout')
-      redirect('/')
-    } catch (error) {
-      return {
-        message: '模拟登录失败 / Mock login failed',
-      }
-    }
-  }
-
-  // 使用真实 Supabase 认证
   try {
     const supabase = await createClient()
     const { error } = await supabase.auth.signInWithPassword({
@@ -100,7 +59,7 @@ export async function login(prevState: { message?: string; errors?: any } | null
       throw error
     }
     return {
-      message: '登录服务暂时不可用，请使用演示账号 / Login service unavailable, please use demo account',
+      message: '登录失败，请检查邮箱和密码 / Login failed, please check email and password',
     }
   }
 }
@@ -124,35 +83,6 @@ export async function signup(prevState: { message?: string; errors?: any } | nul
 
   const { email, password, name } = validatedFields.data
 
-  // 使用模拟认证
-  if (isMockMode()) {
-    try {
-      const result = await mockSignup(email, password, name)
-      
-      if (result.error) {
-        return {
-          message: result.error,
-        }
-      }
-
-      // 成功注册，返回成功状态和用户数据，让客户端处理localStorage
-      if (result.user) {
-        return {
-          success: true,
-          user: result.user,
-        }
-      }
-
-      revalidatePath('/', 'layout')
-      redirect('/')
-    } catch (error) {
-      return {
-        message: '模拟注册失败 / Mock signup failed',
-      }
-    }
-  }
-
-  // 使用真实 Supabase 认证
   try {
     const supabase = await createClient()
     
@@ -191,20 +121,6 @@ export async function signup(prevState: { message?: string; errors?: any } | nul
 }
 
 export async function signOut() {
-  // 使用模拟认证
-  if (isMockMode()) {
-    await mockLogout()
-    // 同时清除服务端 cookie
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    cookieStore.delete('mock-auth-user')
-    
-    revalidatePath('/', 'layout')
-    redirect('/login?logout=true')
-    return
-  }
-
-  // 使用真实 Supabase 认证
   try {
     const supabase = await createClient()
     await supabase.auth.signOut()
@@ -217,22 +133,6 @@ export async function signOut() {
 }
 
 export async function signInWithProvider(provider: 'google' | 'github') {
-  // 使用模拟认证
-  if (isMockMode()) {
-    try {
-      const result = await mockOAuthLogin(provider)
-      
-      if (result.error) {
-        return { error: result.error }
-      }
-
-      redirect('/')
-    } catch (error) {
-      return { error: '模拟 OAuth 登录失败 / Mock OAuth login failed' }
-    }
-  }
-
-  // 使用真实 Supabase 认证
   try {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.signInWithOAuth({
