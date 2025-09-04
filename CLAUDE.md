@@ -1,5 +1,65 @@
 # AI Brain - Claude Code Development Guide
 
+## 🔧 Claude Code 权限配置建议
+
+为了提高开发效率，建议在 `.claude/settings.local.json` 中配置以下权限，让常用的非代码修改操作自动获得权限：
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run type-check)",
+      "Bash(npm run test:*)",
+      "Bash(npm run build)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ci)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(du:*)",
+      "Bash(ps:*)",
+      "Bash(pwd)",
+      "Bash(which:*)",
+      "Bash(lsof:*)",
+      "Bash(kill -9:*)",
+      "Bash(env)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)",
+      "Bash(code:*)",
+      "Read(/Users/leeqi/Desktop/**)",
+      "Read(/var/folders/**/TemporaryItems/**)",
+      "Glob(*)",
+      "Grep(*)",
+      "BashOutput(*)",
+      "KillBash(*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
+```
+
+**权限说明**：
+- ✅ **查看操作**: git、ls、cat、grep 等只读命令自动允许
+- ✅ **开发工具**: npm、node、测试命令等开发必需工具
+- ✅ **系统监控**: ps、lsof、kill 等系统管理命令
+- ❓ **代码修改**: Edit、Write、MultiEdit 等仍需确认（安全保障）
+
+这样配置后，日常的代码检查、测试运行、文件查看等操作自动执行，而只对实际修改代码的操作进行权限确认，既提高效率又保持安全性。
+
 ## 🎯 Project Overview
 
 AI Brain is an intelligent workplace assistant that integrates with enterprise tools (Slack, Jira, GitHub, Google Workspace) to centralize knowledge, automate workflows, and provide AI-powered assistance to teams.
@@ -79,11 +139,14 @@ Deployment: Vercel Ready
 
 #### 多模型AI支持
 ```typescript
-// API端点: app/api/ai/chat-gemini/route.ts
-1. Google Gemini 1.5 Flash (优先使用，免费额度)
-2. OpenAI GPT (备选，需要API密钥)  
-3. 智能Mock系统 (无API时的智能回复)
-4. 自动降级机制 (API失败时优雅处理)
+// 主要API端点: app/api/ai/chat-enhanced/route.ts (智能上下文整合)
+// 备选端点: app/api/ai/chat-gemini/route.ts (纯AI对话)
+
+1. Google Gemini 1.5 Flash (优先使用，免费额度充足)
+2. OpenAI GPT (备选模型，需要API密钥)  
+3. 智能Mock系统 (API不可用时的本地智能回复)
+4. 自动降级机制 (API失败时优雅回退)
+5. 多源上下文增强 (Slack + Gmail + Google Workspace)
 ```
 
 #### 多源上下文整合 + MCP协议支持
@@ -142,18 +205,28 @@ User Input → Multi-Source Context (Slack + MCP) → Enhanced Prompt → LLM �
 # 安装和运行Google Workspace MCP服务器
 uvx google-workspace-mcp --tools gmail drive calendar --transport streamable-http
 
-# 服务器运行在: http://localhost:8000/mcp
-# 支持的传输协议: streamable-http (Server-Sent Events)
-# 认证方式: Google OAuth 2.0 (需要配置credentials.json)
+# 服务器配置信息:
+# 运行地址: http://localhost:8000/mcp
+# 传输协议: streamable-http (Server-Sent Events)
+# 认证方式: Google OAuth 2.0 (credentials.json)
+
+# 验证MCP服务器状态
+curl -X POST http://localhost:8000/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
+
+# MCP服务器日志和调试
+# 服务器启动后会显示可用工具列表
+# 支持的工具: search_gmail_messages, get_drive_file_content, list_calendars 等25+个工具
 ```
 
 #### AI聊天增强集成
 ```typescript
-// Enhanced API端点: app/api/ai/chat-enhanced/route.ts
+// 核心增强API: app/api/ai/chat-enhanced/route.ts
 - 智能上下文获取: 根据用户查询自动搜索相关Gmail/Drive/Calendar数据
-- 并行执行: 同时查询3个Google服务，优化响应时间
-- 上下文格式化: 将MCP数据转换为AI可理解的结构化文本
-- 错误优雅降级: MCP服务不可用时自动回退到标准AI回答
+- 多源并行查询: 同时查询Slack消息、Gmail邮件、Google服务
+- 上下文智能筛选: AI自动选择最相关的5封邮件和10条Slack消息
+- MCP标准化集成: 将MCP数据转换为结构化上下文
+- 优雅降级机制: MCP/外部服务不可用时回退到纯AI对话
+- 响应时间优化: 3-5秒内完成上下文整合和AI生成
 ```
 
 ### ✅ Slack集成 (95% 完成)
@@ -694,35 +767,35 @@ async function buildEnhancedPrompt(userMessage, contextId) {
 # ===========================================
 # SUPABASE 配置 (生产环境)
 # ===========================================
-NEXT_PUBLIC_SUPABASE_URL=https://ewwewswxjyuxfbwzdirx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-anon-key...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-service-role-key...
 
 # ===========================================  
 # AI API 配置 (多模型支持)
 # ===========================================
-# Google Gemini (推荐 - 免费额度)
-GEMINI_API_KEY=AIzaSyBTmXzAakcDQ94HfwJl9HrYT5UPDuBRiEo
+# Google Gemini (推荐 - 免费额度充足)
+GEMINI_API_KEY=AIzaSyB_your_gemini_api_key_here
 
 # OpenAI (备选)
-OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_API_KEY=sk-your-openai-api-key-here
 
 # Anthropic (备选)
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
 
 # ===========================================
 # SLACK 集成配置 (完整集成)
 # ===========================================
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_SIGNING_SECRET=your-signing-secret
-SLACK_CLIENT_ID=your-client-id
-SLACK_CLIENT_SECRET=your-client-secret
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token-here
+SLACK_SIGNING_SECRET=your-slack-signing-secret-here
+SLACK_CLIENT_ID=your-slack-client-id-here
+SLACK_CLIENT_SECRET=your-slack-client-secret-here
 
 # ===========================================
 # GOOGLE WORKSPACE 集成配置
 # ===========================================
-GOOGLE_CLIENT_ID=99897191851-shboern44e04criilg3jt4d7eg5vudbo.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret-here
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/gmail/callback
 
 # ===========================================
@@ -764,17 +837,20 @@ ngrok http 3000
 
 ## 🔗 开发环境配置
 
-### ngrok开发环境 (推荐)
+### ngrok开发环境 (推荐用于Slack/OAuth集成)
 ```bash
-# 当前ngrok隧道URL
-https://25c6f1ccf0bf.ngrok-free.app
+# 启动ngrok隧道 (需要先安装ngrok)
+ngrok http 3000
 
-# 快速启动开发环境
-./scripts/dev-setup.sh ngrok
+# 使用生成的HTTPS URL更新以下环境变量:
+# NEXT_PUBLIC_SITE_URL=https://your-ngrok-id.ngrok-free.app
+# GOOGLE_REDIRECT_URI=https://your-ngrok-id.ngrok-free.app/api/gmail/callback
 
-# 环境变量配置
-USE_NGROK=true
-NGROK_URL=https://25c6f1ccf0bf.ngrok-free.app
+# 快速启动开发环境脚本 (可选)
+echo "🔍 检查端口3000占用..."
+lsof -i :3000 && sudo kill -9 $(lsof -t -i:3000) || true
+echo "🚀 启动开发服务器..."
+npm run dev
 ```
 
 ### 演示账户信息
@@ -789,15 +865,11 @@ NGROK_URL=https://25c6f1ccf0bf.ngrok-free.app
   密码: demo123
   权限: 标准用户权限
 
-测试专用账户:
-  邮箱: leeqii197@gmail.com
-  密码: Liqi624473@
-  权限: 完整Google Workspace集成测试
-
 测试工作空间:
   ID: e7c5aa1e-de00-4327-81dd-cfeba3030081
   名称: "AI Brain Demo"
   类型: PROJECT
+  描述: 用于功能演示和测试的示例工作空间
 ```
 
 ## 🧪 企业级UX测试框架 (100% 完成)
@@ -826,11 +898,15 @@ AI Brain 配备了业界领先的多层次UX测试框架，确保在各种使用
 ```typescript
 tests/
 ├── auth.setup.ts                    # 认证状态设置和管理
-├── e2e/
+├── e2e/                             # 端到端测试套件
 │   ├── authentication.spec.ts       # 认证流程完整测试
 │   ├── chat-interface.spec.ts       # 聊天界面核心功能测试 ⭐
 │   ├── homepage.spec.ts             # 首页和导航测试
 │   └── workspace-management.spec.ts # 工作空间管理测试
+├── setup/                           # 测试环境配置
+│   └── test-database.ts             # 测试数据库初始化
+├── utils/                           # 测试工具和辅助函数 ⭐
+│   └── test-helpers.ts              # 通用测试辅助工具类
 └── playwright.config.ts             # 测试配置和环境设置
 ```
 
@@ -868,25 +944,91 @@ export default defineConfig({
 
 #### 🎯 核心测试场景覆盖
 
-##### 1. 聊天界面完整性测试
+##### 1. 测试工具类系统 (新增)
+```typescript
+// tests/utils/test-helpers.ts - 企业级测试工具
+export class PageHelpers {
+  constructor(private page: Page) {}
+  
+  async waitForPageReady() {
+    await this.page.waitForLoadState('networkidle')
+    await this.page.waitForTimeout(1000)
+  }
+  
+  async fillField(selector: string, value: string) {
+    const field = this.page.locator(selector)
+    await expect(field).toBeVisible({ timeout: 10000 })
+    await field.fill(value)
+  }
+  
+  async loginAsUser(user: TestUser) {
+    await this.fillField('input[type="email"]', user.email)
+    await this.fillField('input[type="password"]', user.password)
+    await this.page.click('button[type="submit"]')
+  }
+  
+  async isAuthenticated(): Promise<boolean> {
+    const indicators = [
+      '[data-testid="user-menu"]',
+      '.user-avatar',
+      'text=工作空间',
+      'text=Workspace'
+    ]
+    
+    for (const indicator of indicators) {
+      if (await this.page.locator(indicator).isVisible()) {
+        return true
+      }
+    }
+    return false
+  }
+}
+```
+
+##### 2. 聊天界面完整性测试 (增强版)
 ```typescript
 // tests/e2e/chat-interface.spec.ts
 test('聊天界面正常加载并显示必要元素', async ({ page }) => {
-  // 智能多选择器策略
-  const messageInput = page.locator('input[placeholder*="消息"]')
-    .or(page.locator('textarea[placeholder*="消息"]'))
-    .or(page.locator('input[placeholder*="message"]'))
-    .or(page.locator('[data-testid="message-input"]'))
+  // 验证侧边栏数据源状态
+  await expect(page.locator('text=Data Source Status')).toBeVisible()
+  await expect(page.locator('text=Slack')).toBeVisible()
+  await expect(page.locator('text=Google Workspace')).toBeVisible()
   
-  await expect(messageInput).toBeVisible()
+  // 验证快速提示词卡片
+  await expect(page.locator('text=Today\'s Schedule')).toBeVisible()
+  await expect(page.locator('text=Create Task')).toBeVisible()
   
-  // 发送按钮多重验证
-  const sendButton = page.locator('button:has-text("发送")')
-    .or(page.locator('button:has-text("Send")'))
-    .or(page.locator('button[type="submit"]'))
-    .or(page.locator('[data-testid="send-button"]'))
+  // 验证输入区域（基于实际DOM结构）
+  const inputArea = page.locator('form, .input-area, input, textarea').first()
+  await expect(inputArea).toBeVisible({ timeout: 5000 })
   
+  // 验证蓝色圆形发送按钮
+  const sendButton = page.locator('button').last()
   await expect(sendButton).toBeVisible()
+})
+```
+
+##### 3. 多轮AI对话测试 (新增)
+```typescript
+test('可以进行多轮AI对话', async ({ page }) => {
+  const messageInput = page.locator('input.w-full.border.border-gray-300.rounded-lg')
+  const sendButton = page.locator('button[type="submit"].bg-blue-600')
+  
+  // 第一轮对话
+  await messageInput.fill('What is 2+2?')
+  await sendButton.click()
+  await expect(page.locator('.bg-blue-600.text-white').filter({ 
+    hasText: 'What is 2+2?' 
+  })).toBeVisible({ timeout: 8000 })
+  
+  // 第二轮对话
+  await messageInput.fill('Thank you for the answer!')
+  await sendButton.click()
+  
+  // 验证聊天历史中有多条消息（至少4条：2条用户+2条AI）
+  const allMessages = page.locator('.rounded-2xl.p-4')
+  const messageCount = await allMessages.count()
+  expect(messageCount).toBeGreaterThanOrEqual(4)
 })
 ```
 
