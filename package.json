@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/start-with-dns-integrated.js",
+    "dev:original": "next dev",
+    "dev:safe": "node scripts/start-with-dns.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint --fix",

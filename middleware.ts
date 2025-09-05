@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
   // API 路由始终可访问
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/')
 
+
   // 检查 Supabase 是否配置
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     // Supabase 未配置，允许访问公共路由

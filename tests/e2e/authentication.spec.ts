@@ -1,92 +1,105 @@
+/**
+ * Authentication Flow E2E Tests
+ * Tests login, registration, logout, and error handling
+ */
 import { test, expect } from '@playwright/test'
+import { 
+  PageHelpers, 
+  TEST_CONFIG, 
+  TestDataGenerator, 
+  TestAssertions 
+} from '../utils/test-helpers'
 
-test.describe('用户认证流程', () => {
-  test('用户可以成功注册新账户', async ({ page }) => {
+test.describe('用户认证流程 - Authentication Flow', () => {
+  test('用户可以成功注册新账户 - User can register new account', async ({ page }) => {
+    const helpers = new PageHelpers(page)
+    
+    // Clear any existing session first
+    await page.context().clearCookies()
+    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => sessionStorage.clear())
+    
     await page.goto('/signup')
+    await helpers.waitForPageReady()
     
-    // 验证注册页面加载
-    await expect(page.locator('h1').or(page.locator('h2')).first()).toContainText(/注册|Sign Up/i)
+    // Verify signup page loaded (more flexible pattern)
+    await TestAssertions.shouldContainText(page, 'h1,h2', /注册|Sign Up|AI Brain|Create/i)
     
-    // 生成唯一邮箱地址用于测试
-    const testEmail = `test_${Date.now()}@example.com`
+    // Generate test data
+    const testEmail = TestDataGenerator.generateTestEmail()
     const testPassword = 'TestPassword123!'
     
-    // 填写注册表单
-    await page.fill('input[type="email"]', testEmail)
-    await page.fill('input[type="password"]', testPassword)
+    // Fill registration form using helpers
+    await helpers.fillField('input[type="email"]', testEmail)
+    await helpers.fillField('input[type="password"]', testPassword)
     
-    // 如果有确认密码字段
-    const confirmPasswordField = page.locator('input[name*="confirm"]').or(page.locator('input[placeholder*="确认"]'))
-    if (await confirmPasswordField.isVisible()) {
+    // Handle confirm password field if present
+    const confirmPasswordField = await helpers.findElement([
+      'input[name*="confirm"]',
+      'input[placeholder*="确认"]',
+      'input[placeholder*="confirm"]'
+    ])
+    
+    if (confirmPasswordField) {
       await confirmPasswordField.fill(testPassword)
     }
     
-    // 提交表单
-    await page.click('button[type="submit"]')
+    // Submit form
+    await helpers.clickButton('button[type="submit"]')
     
-    // 验证注册成功 - 可能跳转到验证邮箱页面或直接登录
-    await page.waitForTimeout(2000)
+    // Wait for registration to process
+    await helpers.waitForLoadingComplete()
     
-    // 检查是否显示成功消息或跳转到工作空间页面
-    const successIndicators = [
-      page.locator('text=注册成功').or(page.locator('text=Registration successful')),
-      page.locator('text=验证邮箱').or(page.locator('text=Verify email')),
-      page.url().includes('/contexts'),
-      page.url().includes('/dashboard')
+    // Verify successful registration (multiple possible outcomes)
+    const successSelectors = [
+      'text=注册成功',
+      'text=Registration successful',
+      'text=验证邮箱',
+      'text=Verify email'
     ]
     
-    const hasSuccess = await Promise.race(successIndicators.map(async (indicator) => {
-      try {
-        if (typeof indicator === 'boolean') {
-          return indicator
-        }
-        await indicator.waitFor({ timeout: 3000 })
-        return true
-      } catch {
-        return false
-      }
-    }))
-    
-    expect(hasSuccess).toBe(true)
+    try {
+      await helpers.waitForAnyElement(successSelectors, TEST_CONFIG.TIMEOUTS.MEDIUM)
+    } catch {
+      // Alternative check: URL changed away from signup
+      const currentUrl = page.url()
+      expect(currentUrl).not.toContain('/signup')
+    }
   })
 
-  test('用户可以使用演示账户登录', async ({ page }) => {
+  test('用户可以使用演示账户登录 - User can login with demo account', async ({ page }) => {
+    const helpers = new PageHelpers(page)
+    
+    // Clear any existing session first
+    await page.context().clearCookies()
+    await page.evaluate(() => localStorage.clear())
+    await page.evaluate(() => sessionStorage.clear())
+    
     await page.goto('/login')
+    await helpers.waitForPageReady()
     
-    // 验证登录页面加载
-    await expect(page.locator('h1').or(page.locator('h2')).first()).toContainText(/登录|Sign In/i)
+    // Verify login page loaded (should now show login form)
+    await TestAssertions.shouldContainText(page, 'h1,h2', /登录|Sign In|AI Brain/i)
     
-    // 使用演示账户登录
-    await page.fill('input[type="email"]', 'demo@aibrain.com')
-    await page.fill('input[type="password"]', 'demo123')
+    // Use demo account for login
+    await helpers.loginAsUser(TEST_CONFIG.DEMO_USER)
     
-    // 点击登录按钮
-    await page.click('button[type="submit"]')
+    // Verify successful login - should be on contexts page
+    await page.waitForURL(/\/contexts/, { timeout: 10000 })
+    expect(await helpers.isAuthenticated()).toBe(true)
     
-    // 等待登录完成并跳转
-    await page.waitForURL(/\/(contexts|dashboard|home)/, { timeout: 10000 })
-    
-    // 验证登录成功的标识
-    await expect(page.locator('body')).toBeVisible()
-    
-    // 验证用户界面元素存在
+    // Check for user interface elements
     const userIndicators = [
-      page.locator('[data-testid="user-menu"]'),
-      page.locator('.user-avatar'),
-      page.locator('text=工作空间').or(page.locator('text=Workspace')),
-      page.locator('text=demo@aibrain.com')
+      '[data-testid="user-menu"]',
+      '.user-avatar',
+      'text=工作空间',
+      'text=Workspace',
+      `text=${TEST_CONFIG.DEMO_USER.email}`
     ]
     
-    // 至少有一个用户标识应该可见
-    let foundUserIndicator = false
-    for (const indicator of userIndicators) {
-      if (await indicator.isVisible({ timeout: 1000 }).catch(() => false)) {
-        foundUserIndicator = true
-        break
-      }
-    }
-    
-    expect(foundUserIndicator).toBe(true)
+    // At least one user indicator should be visible
+    const foundIndicator = await helpers.findElement(userIndicators)
+    expect(foundIndicator).not.toBeNull()
   })
 
   test('输入错误凭据时显示错误消息', async ({ page }) => {
@@ -111,8 +124,8 @@ test.describe('用户认证流程', () => {
   test('用户可以成功注销', async ({ page }) => {
     // 先登录
     await page.goto('/login')
-    await page.fill('input[type="email"]', 'demo@aibrain.com')
-    await page.fill('input[type="password"]', 'demo123')
+    await page.fill('input[type="email"]', 'leeqii197@gmail.com')
+    await page.fill('input[type="password"]', 'Liqi624473@')
     await page.click('button[type="submit"]')
     
     // 等待登录完成

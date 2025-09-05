@@ -1,0 +1,26 @@
+{
+  "scripts": {
+    "test": {
+      "description": "AI Brain E2E Testing Scripts",
+      "e2e": "playwright test",
+      "e2e:headed": "HEADED=true playwright test",
+      "e2e:debug": "playwright test --debug",
+      "e2e:ui": "playwright test --ui",
+      "e2e:chromium": "playwright test --project=chromium",
+      "e2e:firefox": "playwright test --project=firefox", 
+      "e2e:webkit": "playwright test --project=webkit",
+      "e2e:mobile": "playwright test --project=mobile-chrome --project=mobile-safari",
+      "e2e:auth-only": "playwright test tests/e2e/authentication.spec.ts",
+      "e2e:chat-only": "playwright test tests/e2e/chat-interface.spec.ts",
+      "e2e:workspace-only": "playwright test tests/e2e/workspace-management.spec.ts",
+      "e2e:quick": "playwright test --project=chromium tests/e2e/homepage.spec.ts",
+      "report": "playwright show-report",
+      "install-browsers": "playwright install"
+    },
+    "dev": {
+      "description": "Development helpers",
+      "clean-ports": "lsof -ti:3000 | xargs kill -9 || true",
+      "start-safe": "npm run dev:clean-ports && npm run dev"
+    }
+  }
+}

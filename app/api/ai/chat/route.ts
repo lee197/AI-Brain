@@ -36,25 +36,12 @@ const requestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. 认证检查（保持原有逻辑）
-    let user = null
+    // 1. 认证检查
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
     
-    try {
-      const supabase = await createClient()
-      const { data: { user: authUser }, error } = await supabase.auth.getUser()
-      
-      if (error) {
-        console.log('Supabase auth error:', error.message)
-        user = { id: 'fallback-user', email: 'user@aibrain.com' }
-      } else {
-        user = authUser
-      }
-    } catch (error) {
-      console.error('Auth check error:', error)
-      user = { id: 'fallback-user', email: 'user@aibrain.com' }
-    }
-    
-    if (!user) {
+    if (error || !user) {
+      console.error('Auth check error:', error?.message || 'No user found')
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Please login first' }), 
         { status: 401, headers: { 'Content-Type': 'application/json' } }

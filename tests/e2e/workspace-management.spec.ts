@@ -1,8 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-// 使用认证状态
-test.use({ storageState: 'playwright/.auth/user.json' })
-
 test.describe('工作空间管理', () => {
   test('可以查看工作空间列表', async ({ page }) => {
     await page.goto('/contexts')
