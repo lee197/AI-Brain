@@ -200,23 +200,122 @@ User Input → Multi-Source Context (Slack + MCP) → Enhanced Prompt → LLM �
 ✅ delete_event               - 删除日程事件
 ```
 
-#### MCP服务器配置
+#### MCP服务器配置 (🔧 重要: 需要同时启动)
+
+**架构说明**: AI Brain 需要同时运行两个服务器才能获得完整的Google Workspace集成功能：
+- **AI Brain主服务器** (Next.js) - 端口3000
+- **Google Workspace MCP服务器** (Python) - 端口8000
+
+##### 🚀 快速启动方法
+
+**方法1: 一键启动双服务器 (推荐)**
 ```bash
-# 安装和运行Google Workspace MCP服务器
-uvx google-workspace-mcp --tools gmail drive calendar --transport streamable-http
+# 使用统一启动脚本，自动启动AI Brain + MCP服务器
+chmod +x scripts/dev-with-mcp.sh
+./scripts/dev-with-mcp.sh
 
-# 服务器配置信息:
-# 运行地址: http://localhost:8000/mcp
-# 传输协议: streamable-http (Server-Sent Events)
-# 认证方式: Google OAuth 2.0 (credentials.json)
+# 或者分别启动:
+# 终端1: 启动MCP服务器
+python3 scripts/mcp-server-standalone.py
 
-# 验证MCP服务器状态
-curl -X POST http://localhost:8000/mcp -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
-
-# MCP服务器日志和调试
-# 服务器启动后会显示可用工具列表
-# 支持的工具: search_gmail_messages, get_drive_file_content, list_calendars 等25+个工具
+# 终端2: 启动AI Brain
+npm run dev
 ```
+
+**方法2: 单独管理**
+```bash
+# 启动MCP服务器 (后台)
+python3 scripts/mcp-server-standalone.py &
+
+# 启动AI Brain
+npm run dev
+```
+
+##### 🔍 MCP服务器验证
+
+**快速验证**
+```bash
+# 检查MCP服务器进程
+ps aux | grep mcp-server-standalone | grep -v grep
+
+# 检查端口8000监听
+lsof -i :8000
+
+# 完整验证脚本
+./scripts/test-mcp.sh
+```
+
+**AI Brain状态检查**
+```bash
+# 通过AI Brain检查MCP连接状态
+curl http://localhost:3000/api/mcp/status
+
+# 期望返回 (MCP可用时):
+# {"status":"connected","toolsAvailable":25}
+# 期望返回 (MCP不可用时):
+# {"status":"disconnected","fallback":"Using direct Gmail API integration"}
+```
+
+##### 🛠️ MCP服务器技术细节
+
+```bash
+# 服务器配置信息:
+运行地址: http://localhost:8000/mcp
+传输协议: streamable-http (Server-Sent Events)
+版本: google-workspace-mcp v1.2.0
+工具数量: 25+ Google Workspace工具
+
+# 支持的主要工具:
+Gmail: search_gmail_messages, send_gmail_message, get_gmail_message_content
+Drive: search_drive_files, get_drive_file_content, create_drive_file  
+Calendar: list_calendars, get_events, create_event, delete_event
+Docs: create_document, get_document_content, append_text
+Sheets: create_spreadsheet, read_range, write_range
+```
+
+##### ❌ 常见问题和解决方案
+
+**问题1: `ValueError: a coroutine was expected, got None`**
+```bash
+# 原因: google-workspace-mcp包的原始启动脚本有bug
+# 解决: 使用我们的修复版本
+python3 scripts/mcp-server-standalone.py  # ✅ 修复版本
+# 不要使用: uvx --from google-workspace-mcp google-workspace-worker  # ❌ 有问题的原版
+```
+
+**问题2: MCP服务器显示"Not Found"**
+```bash
+# 原因: MCP服务器不是Web服务器，只响应MCP协议请求
+# 说明: 浏览器访问 http://localhost:8000 显示404是正常的
+# 验证: 使用 ./scripts/test-mcp.sh 而不是浏览器访问
+```
+
+**问题3: AI Brain显示"MCP server offline"**
+```bash
+# 检查MCP服务器是否运行
+ps aux | grep mcp-server-standalone
+# 如果没有运行，启动MCP服务器
+python3 scripts/mcp-server-standalone.py &
+```
+
+##### 🔄 开发工作流程
+
+```bash
+# 1. 日常开发启动 (推荐)
+./scripts/dev-with-mcp.sh  # 一键启动双服务器
+
+# 2. 停止所有服务
+# 按 Ctrl+C 或:
+lsof -ti:3000 | xargs kill -9  # 停止Next.js
+lsof -ti:8000 | xargs kill -9  # 停止MCP服务器
+
+# 3. 查看服务状态
+# AI Brain: http://localhost:3000
+# MCP状态: http://localhost:3000/api/mcp/status
+# MCP服务器日志: tail -f logs/mcp-server.log (如果使用统一启动脚本)
+```
+
+**优雅降级机制**: 即使MCP服务器未启动，AI Brain仍然可以正常工作，会自动回退到直接API集成模式。
 
 #### AI聊天增强集成
 ```typescript
@@ -1628,6 +1727,371 @@ const [slackStatus, gmailStatus, driveStatus, calendarStatus] =
 ```
 
 ---
+
+## 🚀 MCP生态系统扩展规划
+
+### 🌐 MCP集成架构愿景
+
+AI Brain采用模块化MCP (Model Context Protocol) 架构，支持未来无限扩展各种企业工具和服务。每个新的MCP服务器都是独立的模块，可以即插即用地集成到系统中。
+
+### 🎯 当前MCP集成状态
+
+#### ✅ 已集成MCP服务器
+```yaml
+Google Workspace MCP:
+  状态: 100% 完成并已投产
+  端口: 8000
+  传输协议: streamable-http (Server-Sent Events)
+  工具数量: 25+ (Gmail/Drive/Calendar/Docs/Sheets/Slides)
+  启动脚本: scripts/mcp-server-standalone.py
+  验证脚本: scripts/test-mcp.sh
+  集成状态: ✅ 完全集成在AI聊天上下文中
+```
+
+### 🔮 MCP扩展路线图
+
+#### 优先级1: 核心生产力工具 (下一季度)
+```yaml
+Slack MCP服务器:
+  功能: 高级Slack工具集 (比当前直接API更强大)
+  工具: 搜索历史、智能摘要、批量操作、情感分析
+  端口: 8001
+  预期开发时间: 2周
+  
+Jira MCP服务器:
+  功能: 完整工单管理生命周期
+  工具: 创建工单、状态跟踪、批量操作、报告生成
+  端口: 8002  
+  预期开发时间: 3周
+  
+GitHub MCP服务器:
+  功能: 代码仓库管理和CI/CD集成
+  工具: PR管理、代码审查、Issues、Actions监控
+  端口: 8003
+  预期开发时间: 3周
+```
+
+#### 优先级2: 企业协作工具 (2个月内)
+```yaml
+Notion MCP服务器:
+  功能: 知识库管理和智能检索
+  工具: 页面创建、内容搜索、模板应用、数据库查询
+  端口: 8004
+  预期开发时间: 2周
+  
+Microsoft 365 MCP服务器:
+  功能: Office文档和Teams集成
+  工具: Word/Excel/PowerPoint处理、Teams消息、OneDrive
+  端口: 8005
+  预期开发时间: 4周
+  
+Salesforce MCP服务器:
+  功能: CRM数据管理和销售流程
+  工具: 客户管理、机会跟踪、报表生成
+  端口: 8006
+  预期开发时间: 3周
+```
+
+#### 优先级3: 专业化和行业工具 (长期规划)
+```yaml
+Database MCP服务器:
+  功能: 多数据库查询和管理
+  工具: SQL执行、表结构查询、数据导入导出
+  端口: 8010
+  支持: PostgreSQL/MySQL/MongoDB/Redis
+  
+AI/ML MCP服务器:
+  功能: AI模型管理和数据科学工具
+  工具: 模型训练、数据预处理、实验跟踪
+  端口: 8011
+  集成: MLflow/Weights&Biases/TensorBoard
+  
+DevOps MCP服务器:
+  功能: 基础设施管理和监控
+  工具: Kubernetes管理、日志分析、性能监控
+  端口: 8012
+  支持: Docker/K8s/Prometheus/Grafana
+```
+
+### 🏗️ MCP多服务器架构设计
+
+#### 分布式MCP架构
+```typescript
+// AI Brain MCP集成架构
+AI Brain Core (Next.js :3000)
+├── Master MCP Router
+│   ├── Service Discovery
+│   ├── Load Balancing  
+│   ├── Health Monitoring
+│   └── Fallback Management
+├── MCP Client Manager
+│   ├── Connection Pooling
+│   ├── Session Management
+│   ├── Tool Discovery
+│   └── Context Aggregation
+└── Enhanced AI Pipeline
+    ├── Multi-Source Context Building
+    ├── Intelligent Tool Selection
+    ├── Parallel Execution Engine
+    └── Result Synthesis
+
+// 独立MCP服务器群 (各自独立端口)
+├── Google Workspace MCP (:8000) ✅
+├── Slack MCP (:8001) 🔄
+├── Jira MCP (:8002) 🔄  
+├── GitHub MCP (:8003) 🔄
+├── Notion MCP (:8004) 🔄
+├── Microsoft 365 MCP (:8005) 🔄
+└── [可扩展更多...] (:801X) 🔮
+```
+
+#### 智能MCP路由系统
+```typescript
+// lib/mcp/mcp-router.ts (未来实现)
+class MCPRouter {
+  private servers: Map<string, MCPClient> = new Map()
+  
+  async registerServer(name: string, port: number) {
+    // 自动发现和注册MCP服务器
+    const client = new MCPClient(`http://localhost:${port}/mcp`)
+    if (await client.checkConnection()) {
+      this.servers.set(name, client)
+      console.log(`✅ MCP服务器已注册: ${name} (端口 ${port})`)
+    }
+  }
+  
+  async routeQuery(userQuery: string): Promise<MCPContext[]> {
+    // 智能分析用户查询，决定调用哪些MCP服务器
+    const relevantServers = await this.analyzeQueryRelevance(userQuery)
+    const contexts = await Promise.allSettled(
+      relevantServers.map(server => server.getContext(userQuery))
+    )
+    return this.aggregateContexts(contexts)
+  }
+  
+  async getSystemStatus(): Promise<MCPSystemStatus> {
+    // 获取所有MCP服务器的健康状态
+    const statuses = await Promise.allSettled(
+      Array.from(this.servers.values()).map(s => s.getStatus())
+    )
+    return this.buildSystemDashboard(statuses)
+  }
+}
+```
+
+### 🛠️ MCP服务器开发标准
+
+#### 标准MCP服务器结构
+```python
+# 标准MCP服务器模板: scripts/mcp-server-template.py
+#!/usr/bin/env python3
+"""
+标准MCP服务器模板
+用于快速创建新的企业工具集成
+"""
+
+import os
+import sys
+from typing import List, Dict, Any
+from mcp.server.fastmcp import FastMCP
+
+# MCP服务器初始化
+mcp = FastMCP("[服务名称] MCP Server")
+
+@mcp.tool()
+async def example_tool(query: str) -> Dict[str, Any]:
+    """工具功能描述"""
+    try:
+        # 实现具体的工具逻辑
+        result = await call_external_api(query)
+        return {
+            "success": True,
+            "data": result,
+            "source": "[服务名称]"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "source": "[服务名称]"
+        }
+
+# 健康检查端点
+@mcp.tool()
+async def health_check() -> Dict[str, str]:
+    """MCP服务器健康检查"""
+    return {
+        "status": "healthy",
+        "server": "[服务名称] MCP",
+        "version": "1.0.0"
+    }
+
+if __name__ == "__main__":
+    print(f"🚀 启动[服务名称] MCP服务器...")
+    print(f"🌐 地址: http://localhost:[端口]/mcp")
+    mcp.run(transport="streamable-http", port=[端口])
+```
+
+#### MCP集成检查清单
+```yaml
+新MCP服务器集成步骤:
+□ 创建独立的MCP服务器脚本 (基于模板)
+□ 分配唯一端口号 (避免冲突)
+□ 实现核心工具集 (最少3个工具)
+□ 添加健康检查和状态监控
+□ 创建启动和验证脚本  
+□ 在MCP路由器中注册服务
+□ 更新AI上下文整合逻辑
+□ 编写完整的测试用例
+□ 更新CLAUDE.md文档
+□ 部署和生产验证
+```
+
+### 📊 MCP生态系统监控
+
+#### MCP系统仪表板 (未来实现)
+```typescript
+// app/admin/mcp/dashboard/page.tsx
+export default function MCPDashboard() {
+  return (
+    <div className="mcp-system-dashboard">
+      <h1>MCP生态系统控制台</h1>
+      
+      {/* 服务器状态总览 */}
+      <div className="servers-overview">
+        <MCPServerCard 
+          name="Google Workspace" 
+          port={8000} 
+          status="running" 
+          toolCount={25} 
+        />
+        <MCPServerCard 
+          name="Slack" 
+          port={8001} 
+          status="planned" 
+          toolCount={15} 
+        />
+        {/* 更多服务器... */}
+      </div>
+      
+      {/* 工具使用统计 */}
+      <div className="tools-analytics">
+        <ToolUsageChart />
+        <ResponseTimeMetrics />
+        <ErrorRateMonitoring />
+      </div>
+      
+      {/* 实时日志流 */}
+      <div className="live-logs">
+        <MCPLogStream />
+      </div>
+    </div>
+  )
+}
+```
+
+#### 自动化MCP管理
+```bash
+# scripts/mcp-manager.sh (未来脚本)
+#!/bin/bash
+# MCP生态系统管理脚本
+
+case "$1" in
+  "start-all")
+    echo "🚀 启动所有MCP服务器..."
+    ./scripts/mcp-server-standalone.py &  # Google Workspace
+    ./scripts/mcp-slack-server.py &       # Slack (未来)
+    ./scripts/mcp-jira-server.py &        # Jira (未来)
+    echo "✅ 所有MCP服务器已启动"
+    ;;
+  "status")
+    echo "📊 MCP服务器状态检查..."
+    curl -s http://localhost:8000/mcp || echo "❌ Google Workspace MCP离线"
+    curl -s http://localhost:8001/mcp || echo "❌ Slack MCP离线"  
+    curl -s http://localhost:8002/mcp || echo "❌ Jira MCP离线"
+    ;;
+  "stop-all")
+    echo "🛑 停止所有MCP服务器..."
+    pkill -f mcp-server
+    echo "✅ 所有MCP服务器已停止"
+    ;;
+  *)
+    echo "用法: $0 {start-all|status|stop-all}"
+    ;;
+esac
+```
+
+### 🎯 MCP扩展优势
+
+#### 技术优势
+```yaml
+标准化协议:
+  - JSON-RPC 2.0统一通信
+  - 工具发现和调用标准化
+  - 跨语言兼容性
+  
+独立部署:
+  - 每个MCP服务器独立运行
+  - 故障隔离，提高系统稳定性  
+  - 独立扩容和版本管理
+  
+即插即用:
+  - 新工具无需修改核心代码
+  - 配置驱动的集成方式
+  - 支持第三方MCP服务器
+```
+
+#### 业务优势  
+```yaml
+快速集成:
+  - 新企业工具2-4周内集成完成
+  - 标准化降低开发复杂度
+  - 复用现有MCP生态系统
+  
+无限扩展:
+  - 支持任意数量的企业工具
+  - 按需启用/禁用特定服务
+  - 满足不同企业的个性化需求
+  
+生态繁荣:
+  - 开源社区贡献MCP服务器
+  - 第三方厂商提供官方MCP
+  - 形成完整的工具生态系统
+```
+
+### 🔮 MCP未来愿景
+
+**终极目标**: 将AI Brain打造成企业工具的统一AI代理平台，通过MCP协议连接所有企业系统，实现真正的"一个AI助手管理全部工作"。
+
+```mermaid
+graph TB
+    subgraph "AI Brain 统一平台"
+        CORE[AI Brain Core<br/>智能路由和上下文管理]
+    end
+    
+    subgraph "MCP生态系统"
+        MCP1[Google Workspace<br/>MCP ✅]
+        MCP2[Slack MCP<br/>🔄 开发中]
+        MCP3[Jira MCP<br/>📋 规划中]
+        MCP4[GitHub MCP<br/>💻 规划中]
+        MCP5[Notion MCP<br/>📝 规划中]
+        MCP6[Database MCP<br/>🗄️ 未来]
+        MCP7[更多MCP...<br/>♾️ 无限扩展]
+    end
+    
+    CORE --> MCP1 & MCP2 & MCP3 & MCP4 & MCP5 & MCP6 & MCP7
+    
+    style CORE fill:#ff6b6b
+    style MCP1 fill:#51cf66
+    style MCP2 fill:#339af0
+    style MCP3 fill:#ffd43b
+    style MCP4 fill:#fa5252
+    style MCP5 fill:#be4bdb
+    style MCP6 fill:#fd7e14
+    style MCP7 fill:#868e96
+```
+
+**预期成果**: 18个月内集成15+个主流企业工具的MCP服务器，成为市场领先的企业AI工作台。
 
 ## 🔐 认证系统要求
 
