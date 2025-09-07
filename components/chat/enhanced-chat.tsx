@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/i18n/language-context'
-import { Send, Clock, Plus, BarChart3, MessageSquare, Github, Copy, Share } from 'lucide-react'
+import { Send, Clock, Plus, BarChart3, MessageSquare, Github, Copy, Share, Settings } from 'lucide-react'
+import { DataSourceStatus } from '@/components/data-source-status'
 
 interface Message {
   id: string

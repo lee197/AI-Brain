@@ -32,7 +32,28 @@ export async function GET(req: NextRequest) {
         }, { status: 503 })
       }
 
-      // 通过 MCP 启动 Google 认证流程
+      // 获取可用工具列表来验证MCP服务器是否已配置认证
+      const toolsList = await mcpClient.listTools()
+      console.log(`📋 Available MCP tools: ${toolsList.length} tools found`)
+      
+      // 如果有工具可用，说明MCP服务器已经配置了认证
+      if (toolsList.length > 0) {
+        // 标记为已连接
+        await markConnected(contextId, 'google-workspace-mcp')
+        console.log(`✅ Marked Google Workspace MCP as connected for context: ${contextId}`)
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Google Workspace MCP already configured and connected',
+          authenticated: true,
+          contextId,
+          mcpIntegration: true,
+          toolsAvailable: toolsList.length,
+          connectedAt: new Date().toISOString()
+        })
+      }
+      
+      // 如果没有工具，尝试启动认证流程（保留原有逻辑作为后备）
       const authResult = await mcpClient.sendRequest('tools/call', {
         name: 'start_google_auth',
         arguments: {

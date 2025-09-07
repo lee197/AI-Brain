@@ -235,9 +235,66 @@ export class GoogleWorkspaceMCPClient {
    */
   async checkConnection(): Promise<boolean> {
     try {
-      const result = await this.sendRequest('tools/list')
-      return Array.isArray(result?.tools)
+      // 首先尝试一个简单的初始化请求来检查服务器是否响应
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2024-11-05',
+            capabilities: {},
+            clientInfo: {
+              name: 'ai-brain-check',
+              version: '1.0.0'
+            }
+          }
+        }),
+        signal: AbortSignal.timeout(5000) // 5秒超时
+      })
+      
+      if (!response.ok) {
+        return false
+      }
+
+      // 检查响应是否为预期的MCP格式
+      const responseText = await response.text()
+      
+      // 处理Server-Sent Events格式
+      if (responseText.includes('data: ')) {
+        const lines = responseText.split('\n')
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonData = JSON.parse(line.substring(6))
+              if (jsonData.result && jsonData.result.serverInfo) {
+                return true
+              }
+            } catch (e) {
+              continue
+            }
+          }
+        }
+      } else {
+        // 处理普通JSON响应
+        try {
+          const jsonData = JSON.parse(responseText)
+          if (jsonData.result && jsonData.result.serverInfo) {
+            return true
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+      
+      return false
     } catch (error) {
+      // 静默处理连接失败，不输出错误日志
       return false
     }
   }
@@ -261,10 +318,10 @@ export class GoogleWorkspaceMCPClient {
   async searchGmail(query: string, maxResults: number = 10): Promise<GmailMessage[]> {
     try {
       const result = await this.sendRequest('tools/call', {
-        name: 'search_gmail_messages',
+        name: 'query_gmail_emails',
         arguments: {
           query,
-          user_google_email: 'leeqii197@gmail.com'
+          max_results: maxResults
         }
       })
 
@@ -411,6 +468,18 @@ export class GoogleWorkspaceMCPClient {
    * 获取综合的 Google Workspace 上下文
    */
   async getWorkspaceContext(userMessage: string): Promise<GoogleWorkspaceContext> {
+    // 首先检查MCP服务器是否可用
+    const isConnected = await this.checkConnection()
+    
+    if (!isConnected) {
+      // MCP服务器不可用，返回空上下文（静默降级）
+      return {
+        gmail: [],
+        calendar: [],
+        drive: []
+      }
+    }
+
     console.log(`🔍 Getting Google Workspace context for: "${userMessage}"`)
 
     // 并行获取所有数据源

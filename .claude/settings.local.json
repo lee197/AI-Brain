@@ -50,7 +50,12 @@
       "Bash(networksetup:*)",
       "Read(//private/etc/**)",
       "Bash(dig:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pip3 show:*)",
+      "WebSearch",
+      "Read(//Users/leeqi/.cache/uv/archive-v0/SaCwOvRePpaBG0zpyK6c3/lib/python3.11/site-packages/mcp/server/fastmcp/**)",
+      "WebFetch(domain:github.com)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

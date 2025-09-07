@@ -61,6 +61,20 @@ export default function ContextDashboardPage() {
   const contextId = params.id as string
 
   // 动态数据源状态
+  const [googleWorkspaceStatus, setGoogleWorkspaceStatus] = useState<'loading' | 'connected' | 'disconnected'>('loading')
+
+  // 检查Google Workspace MCP状态
+  const checkGoogleWorkspaceStatus = async () => {
+    try {
+      const { GoogleWorkspaceMCPClient } = await import('@/lib/mcp/google-workspace-client')
+      const mcpClient = new GoogleWorkspaceMCPClient()
+      const isConnected = await mcpClient.checkConnection()
+      setGoogleWorkspaceStatus(isConnected ? 'connected' : 'disconnected')
+    } catch (error) {
+      setGoogleWorkspaceStatus('disconnected')
+    }
+  }
+
   const dataSources = [
     { 
       name: 'Slack', 
@@ -73,8 +87,10 @@ export default function ContextDashboardPage() {
     { 
       name: 'Google Workspace', 
       icon: FileText, 
-      status: 'connected',
-      color: 'text-green-500',
+      status: googleWorkspaceStatus === 'connected' ? 'connected' : 
+              googleWorkspaceStatus === 'loading' ? 'syncing' : 'disconnected',
+      color: googleWorkspaceStatus === 'connected' ? 'text-green-500' : 
+             googleWorkspaceStatus === 'loading' ? 'text-yellow-500' : 'text-gray-400',
       description: 'Gmail + Calendar + Drive (MCP)'
     },
     { name: 'Jira', icon: FileText, status: 'syncing', color: 'text-yellow-500' },
@@ -160,6 +176,7 @@ export default function ContextDashboardPage() {
   useEffect(() => {
     if (contextId) {
       checkSlackStatus()
+      checkGoogleWorkspaceStatus()
     }
   }, [contextId])
 
@@ -309,6 +326,34 @@ export default function ContextDashboardPage() {
                                 <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                                   <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div>
                                   <span>{language === 'zh' ? '正在同步项目数据...' : 'Syncing project data...'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Google Workspace连接状态信息 */}
+                            {source.name === 'Google Workspace' && source.status === 'connected' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? 'MCP服务器运行中' : 'MCP server running'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '25+ 工具可用' : '25+ tools available'}</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Google Workspace离线状态信息 */}
+                            {source.name === 'Google Workspace' && source.status === 'disconnected' && (
+                              <div className="space-y-1.5 mt-1">
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                                  <span>{language === 'zh' ? 'MCP服务器离线' : 'MCP server offline'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                  <span>{language === 'zh' ? '使用备用Gmail API' : 'Using fallback Gmail API'}</span>
                                 </div>
                               </div>
                             )}
