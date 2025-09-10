@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -57,6 +57,7 @@ interface ConnectionStatus {
 
 export default function DataSourceWizard() {
   const params = useParams()
+  const router = useRouter()
   const contextId = params.id as string
   const { t, language } = useLanguage()
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
@@ -837,6 +838,9 @@ export default function DataSourceWizard() {
                           variant="default" 
                           size="sm" 
                           onClick={() => {
+                            console.log('🔍 Debug - Source ID:', source.id)
+                            console.log('🔍 Debug - Context ID:', contextId)
+                            
                             // Navigate to real-time messages page for the data source
                             const routeMap: { [key: string]: string } = {
                               'slack': `/contexts/${contextId}/slack/messages`,
@@ -848,8 +852,16 @@ export default function DataSourceWizard() {
                               'github': `/contexts/${contextId}/github/messages`,
                               'notion': `/contexts/${contextId}/notion/messages`
                             }
-                            if (routeMap[source.id]) {
-                              window.location.href = routeMap[source.id]
+                            
+                            const targetRoute = routeMap[source.id]
+                            console.log('🔍 Debug - Target route:', targetRoute)
+                            
+                            if (targetRoute) {
+                              console.log('✅ Navigating to:', targetRoute)
+                              router.push(targetRoute)
+                            } else {
+                              console.error('❌ No route found for source:', source.id)
+                              console.error('❌ Available routes:', Object.keys(routeMap))
                             }
                           }}
                           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"

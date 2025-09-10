@@ -3,10 +3,9 @@
     {
       "contextId": "e7c5aa1e-de00-4327-81dd-cfeba3030081",
       "sourceType": "google-workspace-mcp",
-      "connected": false,
-      "connectedAt": "2025-09-07T09:53:48.069Z",
-      "lastActivity": "2025-09-08T14:25:54.913Z",
-      "disconnectedAt": "2025-09-07T10:09:44.270Z"
+      "connected": true,
+      "connectedAt": "2025-09-10T18:40:00.416Z",
+      "lastActivity": "2025-09-10T18:50:39.648Z"
     },
     {
       "contextId": "test",
